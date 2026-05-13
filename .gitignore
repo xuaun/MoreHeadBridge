@@ -1,0 +1,70 @@
+# C# and .NET specific ignores
+## 忽略构建输出
+[Bb]in/
+[Oo]bj/
+[Tt]emp/
+[Ll]ogs/
+[Pp]ackages/
+
+## 忽略IDE和编辑器文件
+.vs/
+.vscode/
+.idea/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.sln.DotSettings.user
+
+## 忽略构建结果
+*.dll
+*.exe
+*.pdb
+*.dll.config
+*.cache
+*.tmp
+
+# Unity specific ignores (如果项目中包含Unity资源)
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+UserSettings/
+
+# 其他忽略文件
+*.log
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.log
+*.scc
+*.swp
+
+# 忽略NuGet包文件
+*.nupkg
+# 忽略NuGet包的文件夹
+packages/
+# 忽略项目重新生成的锁文件
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# 忽略VS Launch配置
+.launchSettings.json
+
+# Rider
+.idea/
+.serena
+.claude
+.junie
+*.sln.iml
+**/bin/
+**/obj/
+
+# 针对该项目特定的忽略
+
+# Local build paths — machine-specific, not committed
+Directory.Build.props

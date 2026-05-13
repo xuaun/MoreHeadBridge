@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+
+        <AssemblyName>MoreHeadBridge</AssemblyName>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <FileVersion>1.0.0.0</FileVersion>
+        <Version>1.0.0</Version>
+        <Authors>Xuaun</Authors>
+        <Product>MoreHeadBridge</Product>
+        <Description>Registers MoreHead .hhh cosmetics into the vanilla REPO cosmetics system via REPOLib.</Description>
+
+        <DebugType>portable</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <RepoPath Condition="'$(RepoPath)' == ''">$(REPO_MANAGED_PATH)</RepoPath>
+        <BepInExPath Condition="'$(BepInExPath)' == ''">$(BEPINEX_CORE_PATH)</BepInExPath>
+        <REPOLibPath Condition="'$(REPOLibPath)' == ''">$(REPOLIB_PATH)</REPOLibPath>
+        <SubPath Condition="'$(SubPath)' == ''" />
+    </PropertyGroup>
+
+    <Target Name="ValidateReferencePaths" BeforeTargets="ResolveReferences">
+        <Error Condition="'$(RepoPath)' == ''" Text="RepoPath is not set. Set RepoPath or REPO_MANAGED_PATH to your REPO_Data\\Managed directory." />
+        <Error Condition="'$(BepInExPath)' == ''" Text="BepInExPath is not set. Set BepInExPath or BEPINEX_CORE_PATH to your BepInEx core directory." />
+        <Error Condition="'$(REPOLibPath)' == ''" Text="REPOLibPath is not set. Set REPOLibPath or REPOLIB_PATH to your REPOLib directory." />
+    </Target>
+
+    <ItemGroup>
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="$(RepoPath)$(SubPath)*Unity*" Private="false" />
+        <Reference Include="$(RepoPath)$(SubPath)Assembly-CSharp*" Publicize="true" Private="false" />
+        <Reference Include="$(RepoPath)$(SubPath)Newtonsoft*" Private="false" />
+        <Reference Include="$(RepoPath)$(SubPath)Photon*" Private="false" />
+        <Reference Include="$(RepoPath)$(SubPath)*Steamworks*" Private="false" />
+        <Reference Include="$(RepoPath)$(SubPath)System.dll" Private="false" />
+        <Reference Include="$(BepInExPath)BepInEx.dll" Private="false" />
+        <Reference Include="$(BepInExPath)0Harmony.dll" Private="false" />
+        <Reference Include="$(REPOLibPath)REPOLib.dll" Private="false" />
+    </ItemGroup>
+
+</Project>
