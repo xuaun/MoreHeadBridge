@@ -10,6 +10,7 @@ namespace MoreHeadBridge;
 internal static class HhhCosmeticLoader
 {
     internal static readonly List<string> RegisteredAssetIds = [];
+    internal static readonly HashSet<string> WorldAssetIds = [];
 
     // assetId → main texture pulled from the prefab's materials. Used by GetIconPatch to
     // render a real per-cosmetic icon instead of the generic placeholder.
@@ -25,9 +26,15 @@ internal static class HhhCosmeticLoader
         ["leftarm"] = SemiFunc.CosmeticType.ArmLeft,
         ["rightleg"] = SemiFunc.CosmeticType.LegRight,
         ["leftleg"] = SemiFunc.CosmeticType.LegLeft,
+        // World cosmetics use Hat as their vanilla type so CosmeticEquip/Unequip and
+        // all other type-indexed vanilla structures stay in-bounds. Rendering conflicts
+        // are avoided by WorldCosmeticsSetupPatch, which filters world indices from
+        // SetupCosmeticsLogic and spawns them separately. Equip conflicts are avoided
+        // by GetCosmeticsToUnequipPatch. WorldAssetIds drives all world-specific logic.
+        ["world"] = SemiFunc.CosmeticType.Hat,
     };
 
-    private static readonly HashSet<string> ValidTags = [.. TagToType.Keys, "world"];
+    private static readonly HashSet<string> ValidTags = [.. TagToType.Keys];
 
     // Tracks names already registered to handle duplicates across mods (like MoreHead does)
     private static readonly HashSet<string> _usedPrefabIds = [];
@@ -55,32 +62,17 @@ internal static class HhhCosmeticLoader
         LogInfo($"Found {files.Length} .hhh file(s). Translating cosmetics from MoreHead to Vanilla REPO...");
 
         int registered = 0;
-        List<string> worldSkipped = [];
 
         foreach (string file in files)
         {
-            string fileName = Path.GetFileNameWithoutExtension(file);
-            ParseFileName(fileName, out _, out string tag);
-
-            if (tag == "world")
-            {
-                worldSkipped.Add(Path.GetFileName(file));
-                Plugin.Logger.LogDebug($"Skipped (world tag): {fileName}");
-                continue;
-            }
-
             if (TryRegister(file))
                 registered++;
         }
 
-        if (worldSkipped.Count > 0)
-            Plugin.Logger.LogWarning($"Skipped {worldSkipped.Count} 'world' cosmetic(s) — no vanilla equivalent (run with Debug log level to see names).");
-
         int total = files.Length;
-        int skipped = total - registered - worldSkipped.Count;
+        int skipped = total - registered;
 
-        LogInfo($"Done — {registered}/{total} registered. " +
-                $"{worldSkipped.Count} world-tag skipped, {skipped} other error(s).");
+        LogInfo($"Done — {registered}/{total} registered, {skipped} error(s).");
     }
 
     private static bool TryRegister(string path)
@@ -96,7 +88,7 @@ internal static class HhhCosmeticLoader
         ParseFileName(fileName, out string internalName, out string tag);
 
         if (!TagToType.TryGetValue(tag, out SemiFunc.CosmeticType cosmeticType))
-            return false; // already handled above (world)
+            return false;
 
         AssetBundle? bundle = AssetBundle.LoadFromFile(path);
         if (bundle == null)
@@ -132,11 +124,12 @@ internal static class HhhCosmeticLoader
         if (internalName != baseInternal)
             Plugin.Logger.LogWarning($"Duplicate internal name '{baseInternal}' → renamed to '{internalName}'");
 
-        if (!prefab.GetComponent<Cosmetic>())
+        var cosmetic = prefab.GetComponent<Cosmetic>();
+        if (cosmetic == null)
         {
-            var comp = prefab.AddComponent<Cosmetic>();
-            comp.type = cosmeticType;
+            cosmetic = prefab.AddComponent<Cosmetic>();
         }
+        cosmetic.type = cosmeticType;
 
         PrefabRef? prefabRef = NetworkPrefabs.RegisterNetworkPrefab($"Cosmetics/{prefab.name}", prefab);
         if (prefabRef == null)
@@ -161,6 +154,8 @@ internal static class HhhCosmeticLoader
         Cosmetics.RegisterCosmetic(cosmeticAsset);
 
         RegisteredAssetIds.Add(assetId);
+        if (tag == "world")
+            WorldAssetIds.Add(assetId);
 
         // Pull the prefab's albedo/main texture for use as the UI icon.
         var iconTex = TryExtractIconTexture(prefab);
@@ -240,4 +235,7 @@ internal static class HhhCosmeticLoader
         else
             Plugin.Logger.LogInfo($"{msg}");
     }
+
+    internal static bool IsWorldAsset(CosmeticAsset? asset)
+        => asset != null && BridgeIds.IsBridgeAsset(asset) && WorldAssetIds.Contains(asset.assetId);
 }

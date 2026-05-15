@@ -47,7 +47,11 @@ internal static class IconCapture
     // Reads the current avatar render texture and saves a PNG for this asset.
     // Returns true on success. Skips if a cached file already exists.
     internal static bool TryCapture(CosmeticAsset asset)
-        => TryCapture(asset, asset?.type ?? SemiFunc.CosmeticType.Hat);
+        => TryCapture(
+            asset,
+            HhhCosmeticLoader.IsWorldAsset(asset)
+                ? (SemiFunc.CosmeticType)(-1)
+                : asset?.type ?? SemiFunc.CosmeticType.Hat);
 
     // type lets us crop the avatar shot to just the relevant body part.
     internal static bool TryCapture(CosmeticAsset asset, SemiFunc.CosmeticType type)

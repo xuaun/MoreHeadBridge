@@ -1,10 +1,5 @@
-// ============================================================================
-// [PartShrinkerBridge] — manually triggers MoreHeadUtilities' part-hiding
-// system for bridge cosmetics.
-//
-// Everything goes through reflection — no compile-time dependency on
-// MoreHeadUtilities. If the mod is missing, this is a no-op.
-// ============================================================================
+// Bridges to MoreHeadUtilities' part-hiding system via reflection.
+// If MoreHeadUtilities is not loaded this is a complete no-op.
 
 using HarmonyLib;
 using System;
@@ -108,9 +103,9 @@ internal static class PartShrinkerBridge
     }
 }
 
-// Spawn-time trigger: right after the cosmetic is instantiated and Setup'd, fire the hide.
+// Fires after InstantiateCosmetic — triggers part-hiding for newly spawned bridge cosmetics.
 [HarmonyPatch(typeof(PlayerCosmetics), "InstantiateCosmetic")]
-internal static class PartShrinkerBridge_SpawnPatch
+internal static class PartShrinkerSpawnPatch
 {
     [HarmonyPostfix]
     private static void Postfix(PlayerCosmetics __instance, CosmeticAsset _cosmeticAsset, GameObject __result)
@@ -123,9 +118,9 @@ internal static class PartShrinkerBridge_SpawnPatch
     }
 }
 
-// Unequip trigger: just before Cosmetic.Remove destroys the cosmetic, unhide its parts.
+// Fires before Cosmetic.Remove — restores part visibility before the cosmetic is destroyed.
 [HarmonyPatch(typeof(Cosmetic), nameof(Cosmetic.Remove))]
-internal static class PartShrinkerBridge_RemovePatch
+internal static class PartShrinkerRemovePatch
 {
     [HarmonyPrefix]
     private static void Prefix(Cosmetic __instance)
