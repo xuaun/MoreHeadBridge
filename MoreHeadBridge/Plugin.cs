@@ -37,6 +37,9 @@ public class Plugin : BaseUnityPlugin
     public static ConfigEntry<bool> HideMoreHeadButton { get; private set; } = null!;
 
 
+    // When true, multiple cosmetics of the same type can be equipped simultaneously.
+    public static ConfigEntry<bool> AllowMultipleCosmetics { get; private set; } = null!;
+
     // Rarity assigned to bridge cosmetics in the vanilla cosmetics shop.
     // Common is the default — Uncommon/Rare/UltraRare make them appear in higher tiers.
     public static ConfigEntry<SemiFunc.Rarity> DefaultRarity { get; private set; } = null!;
@@ -70,6 +73,17 @@ public class Plugin : BaseUnityPlugin
                           "the REPOLib modded save file. Flipping this to FALSE later does NOT\n" +
                           "remove them — REPOLib re-reads the save on every launch.\n" +
                           "If you want to wipe existing unlocks, see the [Reset] section below."
+        );
+
+        AllowMultipleCosmetics = Config.Bind(
+            section: "General",
+            key: "AllowMultipleCosmetics",
+            defaultValue: true,
+            description: "When true, you can equip multiple cosmetics of the same type at once\n" +
+                         "(e.g. two hats, three body pieces, several worlds).\n" +
+                         "Applies to: Hat, HeadBottom, FaceTop, FaceBottom, Eyewear, Ears,\n" +
+                         "           BodyTop, BodyBottom, ArmRight, ArmLeft,\n" +
+                         "           LegRight, FootRight, LegLeft, FootLeft, World."
         );
 
         HideMoreHeadButton = Config.Bind(
@@ -196,6 +210,7 @@ public class Plugin : BaseUnityPlugin
 
         PrintBanner();
         HhhCosmeticLoader.LoadAll();
+        PerCosmeticColors.Load();
         IconCacheCleaner.Run();          // honor DeleteIconCache flag if set
         _harmony.PatchAll();
 

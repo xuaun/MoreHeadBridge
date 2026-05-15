@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MoreHeadBridge;
@@ -24,5 +25,28 @@ internal static class WorldCosmeticsMenuState
         // cosmetics (which include worlds). WorldCosmeticsMenuFilterPatch then controls
         // visibility via IsWorldAsset.
         Category.typeList = [SemiFunc.CosmeticType.Hat];
+    }
+
+    // Splits the currently-equipped Hat-type cosmetics into real hats and worlds.
+    // Used by patches that need to protect one side when the other is being cleared/unequipped.
+    internal static void PartitionHatCosmetics(
+        MetaManager meta,
+        out List<int> realHats,
+        out List<int> worlds)
+    {
+        realHats = new List<int>();
+        worlds   = new List<int>();
+
+        foreach (int idx in meta.cosmeticEquipped)
+        {
+            if (idx < 0 || idx >= meta.cosmeticAssets.Count) continue;
+            var asset = meta.cosmeticAssets[idx];
+            if (asset?.type != SemiFunc.CosmeticType.Hat) continue;
+
+            if (HhhCosmeticLoader.IsWorldAsset(asset))
+                worlds.Add(idx);
+            else
+                realHats.Add(idx);
+        }
     }
 }

@@ -31,22 +31,12 @@ internal static class WorldCosmeticClearButtonPatch
         bool inWorldCategory = WorldCosmeticsMenuState.IsWorldCategory(
             section.menuPageCosmetics?.selectedCategory);
 
-        var backup = new List<int>();
-        foreach (int idx in MetaManager.instance.cosmeticEquipped)
-        {
-            if (idx < 0 || idx >= MetaManager.instance.cosmeticAssets.Count) continue;
-            var asset = MetaManager.instance.cosmeticAssets[idx];
-            if (asset?.type != SemiFunc.CosmeticType.Hat) continue;
+        WorldCosmeticsMenuState.PartitionHatCosmetics(MetaManager.instance, out var realHats, out var worlds);
+        // If in World category, protect real hats; if in Hat category, protect worlds.
+        var toProtect = inWorldCategory ? realHats : worlds;
 
-            bool isWorld = HhhCosmeticLoader.IsWorldAsset(asset);
-            // If in World category, protect real hats (isWorld == false).
-            // If in Hat category, protect world cosmetics (isWorld == true).
-            if (inWorldCategory ? !isWorld : isWorld)
-                backup.Add(idx);
-        }
-
-        if (backup.Count > 0)
-            _backup = backup;
+        if (toProtect.Count > 0)
+            _backup = toProtect;
     }
 
     [HarmonyPostfix]

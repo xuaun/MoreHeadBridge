@@ -84,7 +84,7 @@ internal static class BatchIconGenerator
             yield return null;
             yield return new WaitForEndOfFrame();
 
-            if (IconCapture.TryCapture(asset, asset.type)) done++;
+            if (IconCapture.TryCapture(asset)) done++;
             else failed++;
 
             MetaManager.instance.CosmeticUnequip(asset, _isPreview: true, _save: false, _resetColor: false);

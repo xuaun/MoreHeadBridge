@@ -3,13 +3,14 @@ using System.Collections.Generic;
 
 namespace MoreHeadBridge;
 
-// Vanilla's CosmeticUnequip may sweep ALL Hat-type entries from cosmeticEquipped
-// when any one Hat-type cosmetic is unequipped. Since world cosmetics are also Hat
-// type, this incorrectly removes them when a real Hat is unequipped, and vice versa.
+// Vanilla's CosmeticUnequip sweeps ALL Hat-type entries from cosmeticEquipped when
+// any one Hat-type cosmetic is unequipped (worlds share Hat type).
 //
-// Fix: Prefix backs up the "opposite side" Hat-type indices (world when unequipping
-// hat, real hat when unequipping world). Postfix restores any that vanilla removed
-// as collateral. The next LateUpdate's SetupCosmeticsLogic will re-spawn them.
+// Fix: Prefix backs up every Hat-type entry that should survive:
+//   - Always: the "opposite side" (worlds when unequipping hat, hats when unequipping world).
+//   - With AllowMultipleCosmetics on: also same-side extras, so only the specific
+//     cosmetic being unequipped is removed, not every hat/world at once.
+// Postfix restores any entries vanilla swept as collateral.
 [HarmonyPatch(typeof(MetaManager), nameof(MetaManager.CosmeticUnequip))]
 internal static class WorldCosmeticUnequipPatch
 {
@@ -24,17 +25,18 @@ internal static class WorldCosmeticUnequipPatch
 
         bool targetIsWorld = HhhCosmeticLoader.IsWorldAsset(_cosmeticAsset);
 
-        // Back up the cosmetics on the "other side" so we can restore them if vanilla
-        // sweeps them as part of the Hat-slot type cleanup.
         var backup = new List<int>();
         foreach (int idx in __instance.cosmeticEquipped)
         {
             if (idx < 0 || idx >= __instance.cosmeticAssets.Count) continue;
             var asset = __instance.cosmeticAssets[idx];
-            if (asset?.type != SemiFunc.CosmeticType.Hat) continue;
+            if (asset == null || asset == _cosmeticAsset) continue;
+            if (asset.type != SemiFunc.CosmeticType.Hat) continue;
 
             bool assetIsWorld = HhhCosmeticLoader.IsWorldAsset(asset);
-            if (assetIsWorld != targetIsWorld) // opposite side
+            bool isOpposite = assetIsWorld != targetIsWorld;
+            bool isSameSideExtra = Plugin.AllowMultipleCosmetics.Value && assetIsWorld == targetIsWorld;
+            if (isOpposite || isSameSideExtra)
                 backup.Add(idx);
         }
 
