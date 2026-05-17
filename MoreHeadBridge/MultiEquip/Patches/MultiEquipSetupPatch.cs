@@ -15,7 +15,10 @@ internal static class MultiEquipSetupPatch
 {
     private static readonly Dictionary<PlayerCosmetics, List<GameObject>> _extraInstances = new();
 
-    private static List<CosmeticAsset>? _pendingExtras;
+    private sealed class PatchState
+    {
+        public List<CosmeticAsset>? PendingExtras;
+    }
 
     private static MethodInfo? _instantiateCosmetic;
     private static MethodInfo? _playerMaterialSetup;
@@ -35,9 +38,9 @@ internal static class MultiEquipSetupPatch
 
     [HarmonyPriority(50)]
     [HarmonyPrefix]
-    private static void Prefix(PlayerCosmetics __instance, ref int[] __0)
+    private static void Prefix(PlayerCosmetics __instance, ref int[] __0, ref PatchState __state)
     {
-        _pendingExtras = null;
+        __state = new PatchState();
 
         if (!Plugin.AllowMultipleCosmetics.Value)
         {
@@ -75,25 +78,27 @@ internal static class MultiEquipSetupPatch
         TrimTracked(__instance, desired);
 
         // Only spawn extras that aren't already tracked (i.e. genuinely new).
-        _pendingExtras = desired.Count > 0 ? desired : null;
+        __state.PendingExtras = desired.Count > 0 ? desired : null;
     }
 
     [HarmonyPostfix]
-    private static void Postfix(PlayerCosmetics __instance)
-        => SpawnExtras(__instance);
+    private static void Postfix(PlayerCosmetics __instance, PatchState __state)
+    {
+        if (__state != null) SpawnExtras(__instance, __state);
+    }
 
     [HarmonyFinalizer]
-    private static Exception? Finalizer(PlayerCosmetics __instance, Exception? __exception)
+    private static Exception? Finalizer(PlayerCosmetics __instance, Exception? __exception, PatchState __state)
     {
-        if (__exception != null)
-            SpawnExtras(__instance);
+        if (__exception != null && __state != null)
+            SpawnExtras(__instance, __state);
         return __exception;
     }
 
-    private static void SpawnExtras(PlayerCosmetics instance)
+    private static void SpawnExtras(PlayerCosmetics instance, PatchState state)
     {
-        var extras = _pendingExtras;
-        _pendingExtras = null;
+        var extras = state.PendingExtras;
+        state.PendingExtras = null;
 
         if (extras == null || extras.Count == 0 || instance == null) return;
 
@@ -208,7 +213,7 @@ internal static class MultiEquipSetupPatch
 
             if (avatar != null)
                 PartShrinkerBridge.OnRemove(go, avatar);
-            UnityEngine.Object.DestroyImmediate(go);
+            UnityEngine.Object.Destroy(go);
             list.RemoveAt(i);
         }
     }
@@ -224,7 +229,7 @@ internal static class MultiEquipSetupPatch
             if (go == null) continue;
             if (avatar != null)
                 PartShrinkerBridge.OnRemove(go, avatar);
-            UnityEngine.Object.DestroyImmediate(go);
+            UnityEngine.Object.Destroy(go);
         }
         list.Clear();
     }

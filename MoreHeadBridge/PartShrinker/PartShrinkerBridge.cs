@@ -42,7 +42,7 @@ internal static class PartShrinkerBridge
                        && _addMethod != null && _removeMethod != null;
 
             if (_available)
-                Plugin.Logger.LogInfo("PartShrinker bridge installed.");
+                Plugin.Logger.LogInfo("PartShrinker bridge loaded.");
             else
                 Plugin.Logger.LogWarning("PartShrinker types found but reflection failed — disabled.");
         }

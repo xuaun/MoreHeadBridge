@@ -96,6 +96,9 @@ internal static class WorldCosmeticsMenuFilterPatch
         if (HhhCosmeticLoader.WorldAssetIds.Count == 0) return;
         if (__instance.selectedTab != MenuPageCosmetics.CosmeticPageTab.Cosmetics) return;
         if (IsPresetsCategory(__instance.selectedCategory)) return;
+        // Virtual categories (SEARCH, SELECTED) handle their own visibility —
+        // skip this filter so CosmeticsFilterPatch has full control.
+        if (CosmeticsMenuState.IsVirtual(__instance.selectedCategory)) return;
 
         bool selectedWorld = WorldCosmeticsMenuState.IsWorldCategory(__instance.selectedCategory);
         bool touchedAnyButton = false;

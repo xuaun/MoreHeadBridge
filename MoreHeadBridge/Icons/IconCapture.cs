@@ -7,8 +7,10 @@
 //   - BatchIconGenerator.cs  (one-shot batch cycling all cosmetics)
 // ============================================================================
 
+using HarmonyLib;
 using System;
 using System.IO;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -34,12 +36,22 @@ internal static class IconCapture
 
     internal static bool HasCache(CosmeticAsset asset) => File.Exists(CachePathFor(asset));
     
+    private static FieldInfo? _renderTextureInstanceField;
+
     private static RenderTexture? FindActiveAvatarRT()
     {
         var avatar = UnityEngine.Object.FindObjectOfType<PlayerAvatarMenuHover>();
         if (avatar == null) return null;
-        
-        if (avatar.renderTextureInstance != null) return avatar.renderTextureInstance;
+
+        _renderTextureInstanceField ??= AccessTools.Field(typeof(PlayerAvatarMenuHover), "renderTextureInstance");
+        if (_renderTextureInstanceField == null)
+            Plugin.Logger.LogWarning("IconCapture: PlayerAvatarMenuHover.renderTextureInstance not found — update MoreHeadBridge.");
+        else
+        {
+            var rt = _renderTextureInstanceField.GetValue(avatar) as RenderTexture;
+            if (rt != null) return rt;
+        }
+
         var rawImage = avatar.GetComponent<RawImage>();
         return rawImage != null ? rawImage.texture as RenderTexture : null;
     }
@@ -94,17 +106,20 @@ internal static class IconCapture
 
             File.WriteAllBytes(CachePathFor(asset), scaled.EncodeToPNG());
 
-            // Clear the in-memory icon cache for this asset so the next GetIcon() call
-            // reloads from the freshly-written PNG. Then nudge any visible buttons that
-            // are showing the placeholder so they pick up the new icon immediately.
-            asset.icon = null;
+            // RefreshVisibleButtons below triggers UpdateIcon which calls GetIconPatch,
+            // which recreates the icon from the freshly-written PNG.
+            if (asset.icon != null)
+            {
+                UnityEngine.Object.Destroy(asset.icon);
+                asset.icon = null;
+            }
             RefreshVisibleButtons(asset);
 
             return true;
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogDebug($"[MoreHeadBridge] Icon capture failed for '{asset.name}': {ex.Message}");
+            Plugin.Logger.LogDebug($"Icon capture failed for '{asset.name}': {ex.Message}");
             return false;
         }
         finally
@@ -189,7 +204,7 @@ internal static class IconCapture
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogDebug($"[MoreHeadBridge] Button refresh failed: {ex.Message}");
+            Plugin.Logger.LogDebug($"Button refresh failed: {ex.Message}");
         }
     }
     

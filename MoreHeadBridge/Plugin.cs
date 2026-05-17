@@ -8,6 +8,8 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
+public enum SearchBarPosition { Bottom, Top }
+
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("REPOLib")]
 [BepInDependency("space.customizing.console", BepInDependency.DependencyFlags.SoftDependency)]
@@ -47,6 +49,9 @@ public class Plugin : BaseUnityPlugin
     // Comma-separated list of subfolder names (under BepInEx/plugins) to scan for .hhh files.
     // Empty = scan ALL plugin folders (default). Use this to select only wanted folders.
     public static ConfigEntry<string> SpecificFolders { get; private set; } = null!;
+
+    // Search bar placement: Bottom or Top (default).
+    public static ConfigEntry<SearchBarPosition> SearchFieldPosition { get; private set; } = null!;
 
     public static ConfigEntry<bool> ShowBridgeDebugLogs { get; private set; } = null!;
 
@@ -98,6 +103,15 @@ public class Plugin : BaseUnityPlugin
             key: "DefaultRarity",
             defaultValue: SemiFunc.Rarity.Common,
             description: "Rarity tier assigned to bridge cosmetics in the vanilla shop. Values: Common, Uncommon, Rare, UltraRare."
+        );
+
+        SearchFieldPosition = Config.Bind(
+            section: "General",
+            key: "SearchFieldPosition",
+            defaultValue: SearchBarPosition.Top,
+            description: "Where the search bar appears in the cosmetics menu.\n" +
+                         "Bottom = at the bottom of the Semibot.\n" +
+                         "Top    = above the category strip (default)."
         );
 
         SpecificFolders = Config.Bind(

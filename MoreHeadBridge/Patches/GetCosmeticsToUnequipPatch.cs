@@ -4,9 +4,6 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
-// Vanilla assumes every CosmeticAsset/CosmeticTypeAsset list is initialized.
-// Bridge assets are intentionally minimal, so customTypeList can be null and
-// crash when vanilla overlay cosmetics check slot conflicts.
 [HarmonyPatch(typeof(MetaManager), nameof(MetaManager.GetCosmeticsToUnequip))]
 internal static class GetCosmeticsToUnequipPatch
 {
@@ -66,13 +63,28 @@ internal static class GetCosmeticsToUnequipPatch
             if (worldSlotInvolved)
                 continue;
 
+            bool customAdded = false;
             foreach (CosmeticCustomCondition.Type disabledCustomType in cosmeticTypeAsset?.disabledCustomTypeList ?? [])
             {
                 if (ContainsCustomType(cosmeticAsset.customTypeList, disabledCustomType) ||
                     ContainsCustomType(cosmeticTypeAsset2?.customTypeList, disabledCustomType))
                 {
                     __result.Add(cosmeticAsset);
+                    customAdded = true;
                     break;
+                }
+            }
+
+            if (!customAdded)
+            {
+                foreach (CosmeticCustomCondition.Type disabledCustomType2 in cosmeticTypeAsset2?.disabledCustomTypeList ?? [])
+                {
+                    if (ContainsCustomType(_cosmeticAssetNew.customTypeList, disabledCustomType2) ||
+                        ContainsCustomType(cosmeticTypeAsset?.customTypeList, disabledCustomType2))
+                    {
+                        __result.Add(cosmeticAsset);
+                        break;
+                    }
                 }
             }
         }

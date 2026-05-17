@@ -34,7 +34,7 @@ internal static class PartShrinkerSuppressor
                 BindingFlags.Static | BindingFlags.NonPublic);
 
             harmony.Patch(target, finalizer: new HarmonyMethod(finalizer));
-            Plugin.Logger.LogDebug("PartShrinker.OnDisable NPE suppressor installed.");
+            Plugin.Logger.LogDebug("PartShrinker.OnDisable NPE suppressor loaded.");
         }
         catch (Exception ex)
         {
