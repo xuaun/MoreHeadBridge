@@ -28,6 +28,7 @@ internal static class MultiEquipSetupPatch
     private static FieldInfo? _iconCreationAvatarField;
     private static FieldInfo? _equipLerpField;
     private static FieldInfo? _meshParentsScaleField;
+    private static FieldInfo? _colorsEquippedField;
 
     private static MethodInfo? GetInstantiateMethod() =>
         _instantiateCosmetic ??= AccessTools.Method(typeof(PlayerCosmetics), "InstantiateCosmetic");
@@ -40,8 +41,6 @@ internal static class MultiEquipSetupPatch
     [HarmonyPrefix]
     private static void Prefix(PlayerCosmetics __instance, ref int[] __0, ref PatchState __state)
     {
-        __state = new PatchState();
-
         if (!Plugin.AllowMultipleCosmetics.Value)
         {
             DestroyAllTracked(__instance);
@@ -50,13 +49,16 @@ internal static class MultiEquipSetupPatch
 
         if (MetaManager.instance == null) return;
 
+        __state = new PatchState();
+
         IEnumerable<int> source = MetaManager.instance.cosmeticPreviewEnabled
             ? (IEnumerable<int>)MetaManager.instance.cosmeticEquippedPreview
             : __0;
 
-        // Build the desired extras list (2nd, 3rd… of the same type).
+        // Build the desired extras set (2nd, 3rd… of the same type).
+        // HashSet deduplicates automatically, avoiding an O(n) Contains inside the loop.
         var seen = new HashSet<SemiFunc.CosmeticType>();
-        var desired = new List<CosmeticAsset>();
+        var desiredSet = new HashSet<CosmeticAsset>();
 
         foreach (int idx in source)
         {
@@ -67,18 +69,15 @@ internal static class MultiEquipSetupPatch
             if (!MultiEquipTypes.All.Contains(asset.type)) continue;
 
             if (!seen.Add(asset.type))
-            {
-                if (!desired.Contains(asset))
-                    desired.Add(asset);
-            }
+                desiredSet.Add(asset);
         }
 
         // Remove extras that are no longer needed; KEEP the ones that still are.
         // Keeping them avoids destroying+recreating, which would replay the equip animation.
-        TrimTracked(__instance, desired);
+        TrimTracked(__instance, desiredSet);
 
         // Only spawn extras that aren't already tracked (i.e. genuinely new).
-        __state.PendingExtras = desired.Count > 0 ? desired : null;
+        __state.PendingExtras = desiredSet.Count > 0 ? new List<CosmeticAsset>(desiredSet) : null;
     }
 
     [HarmonyPostfix]
@@ -151,8 +150,11 @@ internal static class MultiEquipSetupPatch
         {
             GetPlayerMaterialSetup()?.Invoke(instance, null);
 
-            var colorsField = AccessTools.Field(typeof(PlayerCosmetics), "colorsEquipped");
-            if (colorsField?.GetValue(instance) is int[] colors)
+            _colorsEquippedField ??= AccessTools.Field(typeof(PlayerCosmetics), "colorsEquipped");
+            if (_colorsEquippedField?.GetValue(instance) is int[] colors)
+                // We pass only the colours array. SetupColorsLogic may have an optional
+                // _forced parameter — omitting it here relies on vanilla's default (false),
+                // meaning a normal incremental colour reapply rather than a full rebuild.
                 GetSetupColorsLogic()?.Invoke(instance, new object[] { colors });
         }
         catch (Exception ex)
@@ -164,6 +166,31 @@ internal static class MultiEquipSetupPatch
         {
             foreach (var go in newlySpawned)
                 SkipEquipAnimation(go);
+        }
+
+        // Local player  → ApplyLocalVisibilityBody() sets "PlayerVisualsLocal"
+        //                 on every Renderer under animBotRoot, hiding them from
+        //                 the first-person camera.
+        // Remote player → set "PlayerVisuals" on only the new GOs' PlayerMaterial
+        //                 renderers (mirrors the else-branch in SetupCosmeticsLogic).
+        var visuals = instance.playerAvatarVisuals;
+        if (visuals != null && !visuals.isMenuAvatar)
+        {
+            if (visuals.playerAvatar?.isLocal == true)
+            {
+                visuals.ApplyLocalVisibilityBody();
+            }
+            else
+            {
+                int remoteLayer = LayerMask.NameToLayer("PlayerVisuals");
+                foreach (var go in newlySpawned)
+                {
+                    foreach (var pm in go.GetComponentsInChildren<PlayerMaterial>(includeInactive: true))
+                    {
+                        if (pm != null) pm.gameObject.layer = remoteLayer;
+                    }
+                }
+            }
         }
     }
 
@@ -197,7 +224,7 @@ internal static class MultiEquipSetupPatch
         }
     }
 
-    private static void TrimTracked(PlayerCosmetics instance, List<CosmeticAsset> desired)
+    private static void TrimTracked(PlayerCosmetics instance, HashSet<CosmeticAsset> desired)
     {
         if (!_extraInstances.TryGetValue(instance, out var list)) return;
 
@@ -234,4 +261,3 @@ internal static class MultiEquipSetupPatch
         list.Clear();
     }
 }
-
