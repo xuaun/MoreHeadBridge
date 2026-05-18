@@ -1,5 +1,6 @@
 using HarmonyLib;
 using System;
+using System.Collections.Generic;
 
 namespace MoreHeadBridge;
 
@@ -16,6 +17,14 @@ internal static class WorldCosmeticsHighlightPatch
         if (__instance == null) return;
         if (MetaManager.instance == null) return;
         if (HhhCosmeticLoader.WorldAssetIds.Count == 0) return;
+
+        // Virtual categories (SEARCH, SELECTED) never show new-unlock counts.
+        if (CosmeticsMenuState.IsVirtual(__instance.category))
+        {
+            if (__instance.highlightObj?.text != null)
+                __instance.highlightObj.text.text = "0";
+            return;
+        }
 
         int count;
         if (__instance.buttonType == MenuElementButtonCosmeticCategory.ButtonType.Category)
@@ -55,13 +64,14 @@ internal static class WorldCosmeticsHighlightPatch
 
     private static int CountNewCosmetics(Func<CosmeticAsset, bool> predicate)
     {
-        var meta = MetaManager.instance;
-        int count = 0;
+        var meta       = MetaManager.instance;
+        var historySet = new HashSet<int>(meta.cosmeticHistory);
+        int count      = 0;
 
         foreach (int index in meta.cosmeticUnlocks)
         {
             if (index < 0 || index >= meta.cosmeticAssets.Count) continue;
-            if (meta.cosmeticHistory.Contains(index)) continue;
+            if (historySet.Contains(index)) continue;
 
             var asset = meta.cosmeticAssets[index];
             if (asset != null && predicate(asset))
@@ -99,11 +109,13 @@ internal static class WorldCosmeticsSectionHighlightPatch
         bool inWorldCategory = WorldCosmeticsMenuState.IsWorldCategory(
             __instance.menuPageCosmetics?.selectedCategory);
 
+        var historySet = new HashSet<int>(MetaManager.instance.cosmeticHistory);
+        var unlocksSet = new HashSet<int>(MetaManager.instance.cosmeticUnlocks);
         int count = 0;
         for (int i = 0; i < MetaManager.instance.cosmeticAssets.Count; i++)
         {
-            if (MetaManager.instance.cosmeticHistory.Contains(i)) continue;
-            if (!MetaManager.instance.cosmeticUnlocks.Contains(i)) continue;
+            if (historySet.Contains(i)) continue;
+            if (!unlocksSet.Contains(i)) continue;
 
             var asset = MetaManager.instance.cosmeticAssets[i];
             if (asset == null || asset.type != SemiFunc.CosmeticType.Hat) continue;

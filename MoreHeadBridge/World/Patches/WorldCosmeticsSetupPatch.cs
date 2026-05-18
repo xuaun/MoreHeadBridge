@@ -9,9 +9,6 @@ namespace MoreHeadBridge;
 //   A) vanilla's one-per-Hat hashSet2 causes slot conflicts between hats and worlds
 //   B) in preview mode, vanilla overrides the int[] param with cosmeticEquippedPreview,
 //      bypassing our prefix filter — both types would race and only the first wins
-// Fix: strip world indices from both lists in the prefix, bypass InstantiateCosmetic,
-// and spawn world prefabs directly in the postfix.
-// Priority.VeryLow runs after REPOLib's modded-index injection.
 [HarmonyPatch(typeof(PlayerCosmetics), "SetupCosmeticsLogic")]
 internal static class WorldCosmeticsSetupPatch
 {
@@ -19,22 +16,23 @@ internal static class WorldCosmeticsSetupPatch
     // Keyed by the PlayerCosmetics instance so we clean up correctly per player.
     private static readonly Dictionary<PlayerCosmetics, List<GameObject>> _worldInstances = new();
 
-    private static List<CosmeticAsset>? _pendingWorldAssets;
-
-    // Indices temporarily removed from cosmeticEquippedPreview; restored in postfix.
-    private static List<int>? _previewIndicesRemoved;
+    private sealed class PatchState
+    {
+        public List<CosmeticAsset>? PendingWorldAssets;
+        public List<int>? PreviewIndicesRemoved;
+    }
 
     [HarmonyPriority(Priority.VeryLow)]
     [HarmonyPrefix]
-    private static void Prefix(PlayerCosmetics __instance, ref int[] __0)
+    private static bool Prefix(PlayerCosmetics __instance, ref int[] __0, ref PatchState __state)
     {
-        _pendingWorldAssets = null;
-        _previewIndicesRemoved = null;
-        if (MetaManager.instance == null) return;
+        __state = new PatchState();
+        PruneDestroyedInstances();
+        if (MetaManager.instance == null) return true;
 
-        // ── Step 1: filter world from the explicit int[] parameter (__0) ──
-        // In preview mode, Step 2 (cosmeticEquippedPreview) is the authority — __0 still
-        // reflects the old cosmeticEquipped, so collecting from it would double-spawn.
+        if (WorldCosmeticsClearButtonPatch.IsUnequipAllRunning)
+            return false;
+
         bool isPreviewMode = MetaManager.instance.cosmeticPreviewEnabled;
         List<CosmeticAsset>? worldAssets = null;
         var filtered = new List<int>(__0.Length);
@@ -50,8 +48,6 @@ internal static class WorldCosmeticsSetupPatch
             var asset = MetaManager.instance.cosmeticAssets[idx];
             if (HhhCosmeticLoader.IsWorldAsset(asset))
             {
-                // Always strip from __0 so vanilla never calls InstantiateCosmetic on it.
-                // Only collect for spawning when NOT in preview mode.
                 if (!isPreviewMode)
                 {
                     worldAssets ??= [];
@@ -66,13 +62,9 @@ internal static class WorldCosmeticsSetupPatch
 
         __0 = [.. filtered];
         if (worldAssets != null)
-            _pendingWorldAssets = worldAssets;
+            __state.PendingWorldAssets = worldAssets;
 
-        // ── Step 2: filter world from cosmeticEquippedPreview ──
-        // Vanilla overrides __0 with cosmeticEquippedPreview during preview mode.
-        // Worlds left in that list would hit hashSet2's one-per-Hat limit and block
-        // the real hat (or vice versa). Temporarily remove them; restore in postfix.
-        if (MetaManager.instance.cosmeticPreviewEnabled)
+        if (isPreviewMode)
         {
             var preview = MetaManager.instance.cosmeticEquippedPreview;
             List<int>? removed = null;
@@ -90,42 +82,42 @@ internal static class WorldCosmeticsSetupPatch
                 preview.RemoveAt(i);
 
                 // Ensure this world asset is (re)spawned in postfix.
-                _pendingWorldAssets ??= [];
-                if (!_pendingWorldAssets.Contains(asset))
-                    _pendingWorldAssets.Add(asset);
+                __state.PendingWorldAssets ??= [];
+                if (!__state.PendingWorldAssets.Contains(asset))
+                    __state.PendingWorldAssets.Add(asset);
             }
 
-            _previewIndicesRemoved = removed;
+            __state.PreviewIndicesRemoved = removed;
         }
 
-        // ── Step 3: always destroy stale world instances ──
-        // Safe because Step 2 already stripped worlds from preview before vanilla runs.
-        // If no world is pending after this, the ghost is simply gone.
-        DestroyTracked(__instance);
+        SelectiveDestroyTracked(__instance, __state.PendingWorldAssets);
+        return true;
     }
 
     [HarmonyPostfix]
-    private static void Postfix(PlayerCosmetics __instance)
+    private static void Postfix(PlayerCosmetics __instance, PatchState __state)
     {
+        if (__state == null) return;
         // Always restore cosmeticEquippedPreview before spawning.
-        RestorePreviewIndices();
-        SpawnPendingWorldCosmetics(__instance);
+        RestorePreviewIndices(__state);
+        SpawnPendingWorldCosmetics(__instance, __state);
     }
 
     [HarmonyFinalizer]
-    private static Exception? Finalizer(PlayerCosmetics __instance, Exception? __exception)
+    private static Exception? Finalizer(PlayerCosmetics __instance, Exception? __exception, PatchState __state)
     {
+        if (__state == null) return __exception;
         // Safety net: restore preview list and attempt spawn even on exception.
-        RestorePreviewIndices();
+        RestorePreviewIndices(__state);
         if (__exception != null)
-            SpawnPendingWorldCosmetics(__instance);
+            SpawnPendingWorldCosmetics(__instance, __state);
         return __exception;
     }
 
-    private static void RestorePreviewIndices()
+    private static void RestorePreviewIndices(PatchState state)
     {
-        var removed = _previewIndicesRemoved;
-        _previewIndicesRemoved = null;
+        var removed = state.PreviewIndicesRemoved;
+        state.PreviewIndicesRemoved = null;
         if (removed == null || MetaManager.instance == null) return;
 
         var preview = MetaManager.instance.cosmeticEquippedPreview;
@@ -136,10 +128,10 @@ internal static class WorldCosmeticsSetupPatch
         }
     }
 
-    private static void SpawnPendingWorldCosmetics(PlayerCosmetics instance)
+    private static void SpawnPendingWorldCosmetics(PlayerCosmetics instance, PatchState state)
     {
-        var assets = _pendingWorldAssets;
-        _pendingWorldAssets = null;
+        var assets = state.PendingWorldAssets;
+        state.PendingWorldAssets = null;
 
         if (assets == null || assets.Count == 0 || instance == null) return;
         if (instance.playerAvatarVisuals == null) return;
@@ -170,6 +162,7 @@ internal static class WorldCosmeticsSetupPatch
                 cosmetic.type = asset.type;
                 cosmetic.rarity = asset.rarity;
                 cosmetic.playerCosmetics = instance;
+                cosmetic.cosmeticParent  = null; // worlds float freely — no body-part parent
 
                 // Provide cosmeticTypeAsset so EquipAnimation() / CustomTypesLogic()
                 // can safely read its fields every frame.
@@ -178,12 +171,7 @@ internal static class WorldCosmeticsSetupPatch
                     typeIdx >= 0 && typeIdx < MetaManager.instance.cosmeticTypeAssets.Count)
                     cosmetic.cosmeticTypeAsset = MetaManager.instance.cosmeticTypeAssets[typeIdx];
 
-                // Start fully equipped: EquipAnimation() early-returns when equipLerp >= 1f.
-                cosmetic.equipLerp = 1f;
-
-                // Setup() is skipped for world cosmetics — propagate cosmetic ref manually.
-                foreach (var blocked in go.GetComponentsInChildren<CosmeticBlocked>(true))
-                    blocked.cosmetic = cosmetic;
+                cosmetic.Setup();
 
                 MoreHeadCosmeticMountPatch.Mount(go, worldNode, prefab);
 
@@ -200,22 +188,55 @@ internal static class WorldCosmeticsSetupPatch
         }
     }
 
-    private static void DestroyTracked(PlayerCosmetics instance)
+    // Removes dictionary entries whose PlayerCosmetics key has been destroyed (player left).
+    // PlayerCosmetics is a UnityEngine.Object, so destroyed instances compare equal to null.
+    private static void PruneDestroyedInstances()
+    {
+        List<PlayerCosmetics>? stale = null;
+        foreach (var key in _worldInstances.Keys)
+        {
+            if (key == null)
+            {
+                stale ??= [];
+                stale.Add(key!); // intentionally collecting destroyed (null-equal) keys for removal
+            }
+        }
+        if (stale != null)
+            foreach (var key in stale)
+                _worldInstances.Remove(key);
+    }
+
+    // Destroys world GameObjects that are no longer in the pending list and removes kept
+    // assets from pending so SpawnPendingWorldCosmetics doesn't re-create them.
+    private static void SelectiveDestroyTracked(PlayerCosmetics instance, List<CosmeticAsset>? pending)
     {
         if (!_worldInstances.TryGetValue(instance, out var list)) return;
 
+        // HashSet for O(1) Contains/Remove instead of O(n) per iteration.
+        var pendingSet = pending != null ? new HashSet<CosmeticAsset>(pending) : null;
+
         var avatar = instance.playerAvatarVisuals;
-        foreach (var go in list)
+        for (int i = list.Count - 1; i >= 0; i--)
         {
-            if (go == null) continue;
+            var go = list[i];
+            if (go == null) { list.RemoveAt(i); continue; }
 
-            // PartShrinkerRemovePatch fires on Cosmetic.Remove(), which we bypass.
-            if (avatar != null)
-                PartShrinkerBridge.OnRemove(go, avatar);
+            var cosmetic    = go.GetComponent<Cosmetic>();
+            var asset       = cosmetic?.cosmeticAsset;
+            // pendingSet.Remove returns true if present — serves as Contains + Remove in one step.
+            bool stillNeeded = asset != null && (pendingSet?.Remove(asset) ?? false);
 
-            UnityEngine.Object.DestroyImmediate(go);
+            if (stillNeeded)
+            {
+                // Keep the GO alive; remove from the original list so Spawn skips it.
+                pending!.Remove(asset!);
+            }
+            else
+            {
+                if (avatar != null) PartShrinkerBridge.OnRemove(go, avatar);
+                UnityEngine.Object.Destroy(go);
+                list.RemoveAt(i);
+            }
         }
-
-        list.Clear();
     }
 }

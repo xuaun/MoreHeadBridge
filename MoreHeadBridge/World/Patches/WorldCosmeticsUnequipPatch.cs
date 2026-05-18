@@ -12,14 +12,12 @@ namespace MoreHeadBridge;
 //     cosmetic being unequipped is removed, not every hat/world at once.
 // Postfix restores any entries vanilla swept as collateral.
 [HarmonyPatch(typeof(MetaManager), nameof(MetaManager.CosmeticUnequip))]
-internal static class WorldCosmeticUnequipPatch
+internal static class WorldCosmeticsUnequipPatch
 {
-    private static List<int>? _backup;
-
     [HarmonyPrefix]
-    private static void Prefix(MetaManager __instance, CosmeticAsset _cosmeticAsset)
+    private static void Prefix(MetaManager __instance, CosmeticAsset _cosmeticAsset, ref List<int>? __state)
     {
-        _backup = null;
+        __state = null;
         if (HhhCosmeticLoader.WorldAssetIds.Count == 0) return;
         if (_cosmeticAsset?.type != SemiFunc.CosmeticType.Hat) return;
 
@@ -41,17 +39,15 @@ internal static class WorldCosmeticUnequipPatch
         }
 
         if (backup.Count > 0)
-            _backup = backup;
+            __state = backup;
     }
 
     [HarmonyPostfix]
-    private static void Postfix(MetaManager __instance)
+    private static void Postfix(MetaManager __instance, List<int>? __state)
     {
-        var backup = _backup;
-        _backup = null;
-        if (backup == null) return;
+        if (__state == null) return;
 
-        foreach (int idx in backup)
+        foreach (int idx in __state)
         {
             if (!__instance.cosmeticEquipped.Contains(idx))
                 __instance.cosmeticEquipped.Add(idx);

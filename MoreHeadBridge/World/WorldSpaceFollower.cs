@@ -26,6 +26,5 @@ internal sealed class WorldSpaceFollower : MonoBehaviour
 
         transform.position = _root.position + _initialOffset;
         transform.rotation = Quaternion.Euler(0f, _root.eulerAngles.y, 0f);
-        transform.localScale = Vector3.one;
     }
 }
