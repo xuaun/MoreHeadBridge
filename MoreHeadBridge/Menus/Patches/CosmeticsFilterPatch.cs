@@ -1,6 +1,17 @@
 // Postfix on MenuPageCosmetics.RefreshScrollContent.
-// Filters buttons and sections for the SEARCH and SELECTED virtual categories,
-// and injects a dedicated World section after all others.
+//
+// VIRTUAL CATEGORIES (SEARCH, SELECTED, FAV, HIDE):
+//   Buttons are shown / hidden based on the Matches() predicate.
+//   No sibling reordering — cosmetics appear in the same vanilla order
+//   (locked-last → rarity-desc → name-asc) as they do in HEAD/BODY/etc.,
+//   just filtered to the relevant subset.
+//   Injects a dedicated World section after all others.
+//
+// VANILLA CATEGORIES (HEAD, BODY, ARMS, LEGS, WORLD, …):
+//   Buttons stay in vanilla order except that favorites are sorted first
+//   inside each section (directly after the clear button).
+//   Hidden items are suppressed when there are any.
+//   Markers (* / X) are updated on every visible button.
 
 using HarmonyLib;
 using System.Collections.Generic;
@@ -17,7 +28,6 @@ internal static class CosmeticsFilterPatch
     private const float  SectionHeader    = 40f;
     internal const string WorldSectionName = "MHB_WorldSection";
     // Synthetic CosmeticType for the injected World section in virtual categories.
-    // Using a value outside the vanilla enum range avoids sticky-header collisions with Hat.
     internal const SemiFunc.CosmeticType WorldSubCategory = (SemiFunc.CosmeticType)999;
 
     [HarmonyPostfix]
@@ -34,25 +44,36 @@ internal static class CosmeticsFilterPatch
 
         var selected = __instance.selectedCategory;
         if (selected == null) return;
-        if (IsPresetsCategory(selected))
+        if (CosmeticsMenuState.IsPresetsCategory(selected))
         {
             UpdateSearchFieldVisibility(false);
             HideEmptyState();
             return;
         }
 
-        bool isSelected  = CosmeticsMenuState.IsSelected(selected);
-        bool isSearch    = CosmeticsMenuState.IsSearch(selected);
-        bool isVirtual   = CosmeticsMenuState.IsVirtual(selected);
-        string search    = CosmeticsMenuState.SearchText?.Trim() ?? "";
+        bool isSelected = CosmeticsMenuState.IsSelected(selected);
+        bool isSearch   = CosmeticsMenuState.IsSearch(selected);
+        bool isFav      = CosmeticsMenuState.IsFavCategory(selected);
+        bool isHide     = CosmeticsMenuState.IsHideCategory(selected);
+        bool isVirtual  = CosmeticsMenuState.IsVirtual(selected);   // covers all four
+
+        string search    = (CosmeticsMenuState.SearchText?.Trim() ?? "").ToLowerInvariant();
         bool applySearch = search.Length > 0;
 
         // Manage search field visibility and SearchMode flag.
         UpdateSearchFieldVisibility(isSearch);
 
-        // For vanilla categories with no active search: nothing to do.
-        if (!isVirtual && !applySearch)
+        BridgeFavoritesManager.EnsureLoaded();
+
+        // Whether we need to suppress hidden items in this view.
+        // Hidden items are only visible in the HIDE and SELECTED tabs.
+        bool suppressHidden = !isHide && !isSelected && BridgeFavoritesManager.HasAnyHidden();
+
+        // For vanilla categories with no special filtering required:
+        // sort favorites first and update markers, then exit.
+        if (!isVirtual && !applySearch && !suppressHidden)
         {
+            SortFavoritesInCategory(__instance);
             HideEmptyState();
             return;
         }
@@ -72,8 +93,7 @@ internal static class CosmeticsFilterPatch
                 subCatButtons[btn.subCategory] = child.gameObject;
         }
 
-        // Show sub-category buttons for vanilla categories; hide all for virtual
-        // (virtual categories don't use sub-navigation).
+        // Show sub-category buttons for vanilla categories; hide all for virtual.
         foreach (var go in subCatButtons.Values)
             go.SetActive(!isVirtual);
 
@@ -105,15 +125,37 @@ internal static class CosmeticsFilterPatch
             {
                 if (btn == null || btn.gameObject == null) continue;
 
-                bool show = isHatSection && HhhCosmeticLoader.IsWorldAsset(btn.cosmeticAsset)
-                    ? false
-                    : Matches(btn.cosmeticAsset, isSelected, isSearch, applySearch, search,
-                              equippedSet, assetIndexMap, unlocksSet);
+                bool show;
+                if (isHatSection && HhhCosmeticLoader.IsWorldAsset(btn.cosmeticAsset))
+                {
+                    // World assets go to their own injected section — always hide here.
+                    show = false;
+                }
+                else if (!isVirtual && suppressHidden)
+                {
+                    // Non-virtual category: only HIDE the hidden items; never force-show.
+                    // (WorldCosmeticsMenuFilterPatch already manages show/hide for world assets.)
+                    if (BridgeFavoritesManager.IsHidden(btn.cosmeticAsset) && btn.gameObject.activeSelf)
+                        btn.gameObject.SetActive(false);
+                    if (btn.gameObject.activeSelf)
+                        FavHideMarkerHelper.UpdateMarker(btn);
+                    continue; // skip the standard show/hide logic below
+                }
+                else
+                {
+                    show = Matches(btn.cosmeticAsset,
+                        isSelected, isSearch, isFav, isHide, suppressHidden,
+                        applySearch, search,
+                        equippedSet, assetIndexMap, unlocksSet);
+                }
 
                 if (btn.gameObject.activeSelf != show)
                     btn.gameObject.SetActive(show);
 
-                if (!show) removedCount++;
+                if (show)
+                    FavHideMarkerHelper.UpdateMarker(btn);
+                else
+                    removedCount++;
             }
 
             int remaining = cosmeticButtons.Length - removedCount;
@@ -140,11 +182,11 @@ internal static class CosmeticsFilterPatch
             if (section.highlightObj != null)
                 section.highlightObj.gameObject.SetActive(false);
 
-            var grid    = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
+            // ── Layout reflow (no sibling reordering — vanilla order is preserved) ──
+            var grid = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
 
-            // Vanilla appends extra bottom padding to the last section so the sticky
-            // header has room to scroll. Virtual categories manage layout manually and
-            // don't use that mechanism — strip it so WORLD isn't pushed down by the gap.
+            // Strip the extra bottom padding vanilla appends to the last section
+            // (virtual categories manage layout manually).
             grid.padding = new RectOffset(
                 grid.padding.left, grid.padding.right, grid.padding.top, 0);
 
@@ -170,9 +212,17 @@ internal static class CosmeticsFilterPatch
             yPos -= sectionH + SectionSpacing;
         }
 
-        // Inject a dedicated World section after all other sections.
+        // Sort: clear button → favorites → (hidden at end for SELECTED) → rest.
+        // Runs for non-virtual categories AND for SEARCH / SELECTED virtual tabs.
+        // FAV and HIDE tabs keep vanilla order already; no extra sort needed there.
+        if (!isVirtual || isSearch || isSelected)
+            SortFavoritesInCategory(__instance, hiddenAtEnd: isSelected);
+
+        // Inject a dedicated World section after all other sections (virtual only).
         int worldCount = splitWorldFromHat
-            ? InjectWorldSection(__instance, yPos, isSelected, isSearch, applySearch, search,
+            ? InjectWorldSection(__instance, yPos,
+                                 isSelected, isSearch, isFav, isHide, suppressHidden,
+                                 applySearch, search,
                                  equippedSet, assetIndexMap, unlocksSet)
             : 0;
         totalVisible += worldCount;
@@ -186,13 +236,21 @@ internal static class CosmeticsFilterPatch
             ApplyStickyPadding(__instance, lastSection);
         }
 
+        // Empty-state messages.
         if (isVirtual && totalVisible == 0)
         {
-            string msg = isSearch
-                ? (string.IsNullOrWhiteSpace(CosmeticsMenuState.SearchText)
+            string msg;
+            if (isFav)
+                msg = "Add a favorite with Ctrl+click :)";
+            else if (isHide)
+                msg = "Hide cosmetics with Alt+click :P";
+            else if (isSearch)
+                msg = string.IsNullOrWhiteSpace(CosmeticsMenuState.SearchText)
                     ? "Type to search cosmetics here :)"
-                    : "No cosmetics found :'(")
-                : "Equip a cosmetic to see it here :3";
+                    : "No cosmetics found :'(";
+            else
+                msg = "Equip a cosmetic to see it here :3";
+
             ShowEmptyState(msg);
         }
         else
@@ -202,7 +260,89 @@ internal static class CosmeticsFilterPatch
             RebuildScroll(__instance);
     }
 
-    // Mirrors vanilla's sticky-header padding
+    // ── Favorite / hidden sorting ────────────────────────────────────────────
+    //
+    // Every call to RefreshScrollContent destroys and recreates sections, so
+    // sibling indices after vanilla's creation always reflect the LINQ order
+    // (locked-last → rarity-desc → name-asc).  We use those indices as the
+    // stable sort key so groups move to the front while their relative order
+    // within each group is preserved.
+    //
+    // Sort priority for visible buttons:
+    //   0 = favorite
+    //   1 = normal (non-fav, non-hidden)
+    //   2 = hidden  ← only when hiddenAtEnd == true (SELECTED tab)
+    //
+    // Inactive buttons (truly hidden in the UI sense — not the user-hidden
+    // concept) always go at the very end, after all visible buttons.
+    private static void SortFavoritesInCategory(MenuPageCosmetics page,
+                                                bool hiddenAtEnd = false)
+    {
+        bool hasFavs   = BridgeFavoritesManager.HasAnyFavorite();
+        bool hasHidden = hiddenAtEnd && BridgeFavoritesManager.HasAnyHidden();
+
+        foreach (var section in page.sections)
+        {
+            if (section == null || section.cosmeticListTransform == null) continue;
+
+            var allButtons = section.cosmeticListTransform
+                .GetComponentsInChildren<MenuElementCosmeticButton>(includeInactive: true);
+
+            // Update markers on every VISIBLE cosmetic button.
+            foreach (var btn in allButtons)
+                if (btn != null && btn.cosmeticAsset != null && btn.gameObject.activeSelf)
+                    FavHideMarkerHelper.UpdateMarker(btn);
+
+            // Nothing to reorder if there are no favorites and no hidden-at-end.
+            if (!hasFavs && !hasHidden) continue;
+
+            // Clear button = cosmeticAsset == null (first slot of the sectionPrefab).
+            var clearButton     = allButtons.FirstOrDefault(b => b != null && b.cosmeticAsset == null);
+            var cosmeticButtons = allButtons.Where(b => b != null && b.cosmeticAsset != null).ToArray();
+
+            if (cosmeticButtons.Length == 0) continue;
+
+            bool hasFavsHere = hasFavs && cosmeticButtons.Any(b =>
+                b.gameObject.activeSelf && BridgeFavoritesManager.IsFavorite(b.cosmeticAsset));
+            bool hasHiddenHere = hasHidden && cosmeticButtons.Any(b =>
+                b.gameObject.activeSelf && BridgeFavoritesManager.IsHidden(b.cosmeticAsset));
+
+            // Nothing to do in this section — skip the rebuild.
+            if (!hasFavsHere && !hasHiddenHere) continue;
+
+            // Stably sort visible buttons by priority, then by their current sibling
+            // index (= vanilla LINQ order after instantiation) within each group.
+            var sorted = cosmeticButtons
+                .Where(b => b.gameObject.activeSelf)
+                .OrderBy(b =>
+                {
+                    if (BridgeFavoritesManager.IsFavorite(b.cosmeticAsset)) return 0;
+                    if (hasHidden && BridgeFavoritesManager.IsHidden(b.cosmeticAsset)) return 2;
+                    return 1;
+                })
+                .ThenBy(b => b.transform.GetSiblingIndex())
+                .ToArray();
+
+            // Inactive (truly not shown) buttons go after all visible ones.
+            var inactive = cosmeticButtons
+                .Where(b => !b.gameObject.activeSelf)
+                .OrderBy(b => b.transform.GetSiblingIndex())
+                .ToArray();
+
+            // Rebuild sibling order: clear → sorted visible → inactive.
+            int si = 0;
+            if (clearButton != null) clearButton.transform.SetSiblingIndex(si++);
+            foreach (var btn in sorted)   btn.transform.SetSiblingIndex(si++);
+            foreach (var btn in inactive) btn.transform.SetSiblingIndex(si++);
+
+            // Rebuild the list rect so the GridLayoutGroup picks up the new order.
+            var listRect = section.cosmeticListTransform?.GetComponent<RectTransform>();
+            if (listRect != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(listRect);
+        }
+    }
+
+    // ── Mirrors vanilla's sticky-header padding ───────────────────────────────
     private static void ApplyStickyPadding(MenuPageCosmetics page, MenuElementCosmeticSection? section)
     {
         if (section == null) return;
@@ -225,11 +365,12 @@ internal static class CosmeticsFilterPatch
         LayoutRebuilder.ForceRebuildLayoutImmediate(sectionRect);
     }
 
-    // Creates a World section from scratch using the vanilla prefabs, containing only
+    // Creates a World section from scratch using vanilla prefabs, containing only
     // world assets that pass the current filter. Returns the number of items shown.
     private static int InjectWorldSection(
         MenuPageCosmetics page, float yPos,
-        bool isSelected, bool isSearch, bool applySearch, string search,
+        bool isSelected, bool isSearch, bool isFav, bool isHide, bool suppressHidden,
+        bool applySearch, string search,
         HashSet<int> equippedSet, Dictionary<CosmeticAsset, int> assetIndexMap, HashSet<int> unlocksSet)
     {
         // Destroy any stale World section left from a previous refresh.
@@ -242,12 +383,32 @@ internal static class CosmeticsFilterPatch
             }
         }
 
-        var worldAssets = MetaManager.instance.cosmeticAssets
-            .Where(a => a != null && a.prefab.IsValid()
-                     && HhhCosmeticLoader.IsWorldAsset(a)
-                     && Matches(a, isSelected, isSearch, applySearch, search,
-                                equippedSet, assetIndexMap, unlocksSet))
-            .ToList();
+        // World assets in vanilla order (same LINQ as vanilla: locked-last, rarity-desc, name-asc).
+        var worldAssets = (from a in MetaManager.instance.cosmeticAssets
+                           where a != null && a.prefab.IsValid()
+                              && HhhCosmeticLoader.IsWorldAsset(a)
+                              && Matches(a,
+                                         isSelected, isSearch, isFav, isHide, suppressHidden,
+                                         applySearch, search,
+                                         equippedSet, assetIndexMap, unlocksSet)
+                           orderby !unlocksSet.Contains(assetIndexMap.TryGetValue(a, out var idx) ? idx : -1),
+                                   a.rarity descending,
+                                   a.assetName
+                           select a).ToList();
+
+        // For SEARCH and SELECTED: additionally sort favorites first (and hidden last
+        // for SELECTED), preserving vanilla order within each group via index.
+        if (isSearch || isSelected)
+        {
+            bool hiddenAtEnd = isSelected;
+            worldAssets = worldAssets
+                .Select((a, i) => (a, i))
+                .OrderBy(t => BridgeFavoritesManager.IsFavorite(t.a) ? 0
+                            : (hiddenAtEnd && BridgeFavoritesManager.IsHidden(t.a) ? 2 : 1))
+                .ThenBy(t => t.i)
+                .Select(t => t.a)
+                .ToList();
+        }
 
         if (worldAssets.Count == 0) return 0;
 
@@ -265,9 +426,14 @@ internal static class CosmeticsFilterPatch
             section.highlightObj.gameObject.SetActive(false);
 
         var grid = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
+
         foreach (var asset in worldAssets)
-            Object.Instantiate(page.sectionButtonPrefab, section.cosmeticListTransform)
-                  .GetComponent<MenuElementCosmeticButton>().cosmeticAsset = asset;
+        {
+            var btnGO = Object.Instantiate(page.sectionButtonPrefab, section.cosmeticListTransform);
+            var btn   = btnGO.GetComponent<MenuElementCosmeticButton>();
+            btn.cosmeticAsset = asset;
+            FavHideMarkerHelper.UpdateMarker(btn);
+        }
 
         int   count   = worldAssets.Count;
         int   columns = Mathf.Max(1, grid.constraintCount);
@@ -312,7 +478,8 @@ internal static class CosmeticsFilterPatch
 
     private static bool Matches(
         CosmeticAsset asset,
-        bool isSelected, bool isSearch, bool applySearch, string search,
+        bool isSelected, bool isSearch, bool isFav, bool isHide, bool suppressHidden,
+        bool applySearch, string search,
         HashSet<int> equippedSet, Dictionary<CosmeticAsset, int> assetIndexMap, HashSet<int> unlocksSet)
     {
         // SEARCH with empty field shows nothing — user hasn't typed yet.
@@ -321,15 +488,26 @@ internal static class CosmeticsFilterPatch
         // assetIndexMap covers only vanilla-registered assets; bridge-only assets return -1.
         assetIndexMap.TryGetValue(asset, out int idx);
 
+        // HIDE tab: show only hidden items.
+        if (isHide) return BridgeFavoritesManager.IsHidden(asset);
+
+        // FAV tab: show only favorites.
+        if (isFav) return BridgeFavoritesManager.IsFavorite(asset);
+
+        // Suppress hidden items everywhere except HIDE and SELECTED tabs.
+        if (suppressHidden && BridgeFavoritesManager.IsHidden(asset)) return false;
+
+        // SELECTED tab: show only equipped items.
         if (isSelected && !equippedSet.Contains(idx)) return false;
 
-        // SEARCH only shows unlocked cosmetics; bridge-injected assets (idx == -1) are always visible.
+        // SEARCH only shows unlocked cosmetics; bridge-injected assets (idx == -1) always pass.
         if (isSearch && idx >= 0 && !unlocksSet.Contains(idx)) return false;
 
         if (applySearch)
         {
+            // `search` is already lowercased by the caller — no extra allocation per button.
             string name = (asset.assetName ?? asset.name ?? "").ToLowerInvariant();
-            if (!name.Contains(search.ToLowerInvariant())) return false;
+            if (!name.Contains(search)) return false;
         }
 
         return true;
@@ -368,10 +546,4 @@ internal static class CosmeticsFilterPatch
             LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
     }
 
-    private static bool IsPresetsCategory(CosmeticCategoryAsset? cat)
-    {
-        if (cat == null) return false;
-        string name = (cat.categoryName ?? cat.name ?? "").ToUpperInvariant();
-        return name.Contains("PRESET") || name.Contains("OUTFIT");
-    }
 }

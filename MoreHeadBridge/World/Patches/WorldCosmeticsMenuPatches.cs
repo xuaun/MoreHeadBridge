@@ -95,13 +95,14 @@ internal static class WorldCosmeticsMenuFilterPatch
         if (__instance == null) return;
         if (HhhCosmeticLoader.WorldAssetIds.Count == 0) return;
         if (__instance.selectedTab != MenuPageCosmetics.CosmeticPageTab.Cosmetics) return;
-        if (IsPresetsCategory(__instance.selectedCategory)) return;
+        if (CosmeticsMenuState.IsPresetsCategory(__instance.selectedCategory)) return;
         // Virtual categories (SEARCH, SELECTED) handle their own visibility —
         // skip this filter so CosmeticsFilterPatch has full control.
         if (CosmeticsMenuState.IsVirtual(__instance.selectedCategory)) return;
 
         bool selectedWorld = WorldCosmeticsMenuState.IsWorldCategory(__instance.selectedCategory);
         bool touchedAnyButton = false;
+        BridgeFavoritesManager.EnsureLoaded();
 
         float yPos = 0f;
         foreach (var section in __instance.sections)
@@ -118,6 +119,10 @@ internal static class WorldCosmeticsMenuFilterPatch
             {
                 bool isWorldAsset = HhhCosmeticLoader.IsWorldAsset(btn.cosmeticAsset);
                 bool shouldShow = selectedWorld ? isWorldAsset : !isWorldAsset;
+
+                // Never re-show items the user has explicitly hidden
+                if (shouldShow && BridgeFavoritesManager.IsHidden(btn.cosmeticAsset))
+                    shouldShow = false;
 
                 if (btn.gameObject.activeSelf != shouldShow)
                 {
@@ -222,10 +227,4 @@ internal static class WorldCosmeticsMenuFilterPatch
             LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
     }
 
-    private static bool IsPresetsCategory(CosmeticCategoryAsset? category)
-    {
-        if (category == null) return false;
-        string name = (category.categoryName ?? category.name ?? "").ToUpperInvariant();
-        return name.Contains("PRESET") || name.Contains("OUTFIT");
-    }
 }
