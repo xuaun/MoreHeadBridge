@@ -2,7 +2,7 @@
 // Persistent store for the player's FAVORITES and HIDDEN cosmetic lists.
 //
 // Data is written to:
-//   %persistentDataPath%/MoreHeadBridge_Favorites.json
+//   BepInEx\config\MoreHeadBridge_Favorites.json
 //
 // Each entry is keyed by assetId (preferred), assetName, or name as a fallback,
 // matching the priority used everywhere else in this mod.

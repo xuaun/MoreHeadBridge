@@ -12,7 +12,8 @@ namespace MoreHeadBridge;
 internal static class FavHideIcons
 {
     // Matches the default MSBuild logical name: <AssemblyName>.<FolderPath>.<FileName>
-    private const string ResourcePrefix = "MoreHeadBridge.Icons.";
+    // PNGs live in Icons\Resources\ → logical name is MoreHeadBridge.Icons.Resources.<file>
+    private const string ResourcePrefix = "MoreHeadBridge.Icons.Resources.";
 
     private static Sprite? _star;
     private static Sprite? _hide;
