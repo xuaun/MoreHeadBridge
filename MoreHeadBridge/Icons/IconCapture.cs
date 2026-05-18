@@ -25,8 +25,9 @@ internal static class IconCapture
     // name — including ours — at every launch. By storing icons OUTSIDE that path we
     // keep them around. Our GetIconPatch loads from here directly, so we never need
     // vanilla's cache to know about them.
+    private static string? _cacheDir;
     internal static string CacheDir =>
-        Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons");
+        _cacheDir ??= Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons");
 
     internal static string CachePathFor(CosmeticAsset asset)
     {
@@ -35,7 +36,7 @@ internal static class IconCapture
     }
 
     internal static bool HasCache(CosmeticAsset asset) => File.Exists(CachePathFor(asset));
-    
+
     private static FieldInfo? _renderTextureInstanceField;
 
     private static RenderTexture? FindActiveAvatarRT()
@@ -82,7 +83,7 @@ internal static class IconCapture
             if (rt == null) return false;
 
             Directory.CreateDirectory(CacheDir);
-            
+
             RenderTexture.active = rt;
             full = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
             full.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
@@ -130,7 +131,7 @@ internal static class IconCapture
             if (scaled != null) UnityEngine.Object.Destroy(scaled);
         }
     }
-    
+
     private static Rect GetCropRect(SemiFunc.CosmeticType type)
     {
         switch (type)
@@ -195,7 +196,13 @@ internal static class IconCapture
     {
         try
         {
-            var buttons = UnityEngine.Object.FindObjectsOfType<MenuElementCosmeticButton>();
+            // Prefer searching under the open menu page (cheap singular find + children)
+            // rather than sweeping every object in the scene.
+            var menuPage = UnityEngine.Object.FindObjectOfType<MenuPageCosmetics>();
+            MenuElementCosmeticButton[] buttons = menuPage != null
+                ? menuPage.GetComponentsInChildren<MenuElementCosmeticButton>(true)
+                : UnityEngine.Object.FindObjectsOfType<MenuElementCosmeticButton>();
+
             foreach (var btn in buttons)
             {
                 if (btn != null && btn.cosmeticAsset == asset)
@@ -207,7 +214,7 @@ internal static class IconCapture
             Plugin.Logger.LogDebug($"Button refresh failed: {ex.Message}");
         }
     }
-    
+
     private static Texture2D ResizeBilinear(Texture2D src, int w, int h)
     {
         var tmp = RenderTexture.GetTemporary(w, h);
