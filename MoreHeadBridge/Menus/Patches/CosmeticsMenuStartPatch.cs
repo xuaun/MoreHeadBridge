@@ -13,7 +13,7 @@ namespace MoreHeadBridge;
 [HarmonyPatch(typeof(MenuPageCosmetics), "Start")]
 internal static class CosmeticsMenuStartPatch
 {
-    [HarmonyPostfix]
+    [HarmonyPostfix, HarmonyPriority(Priority.High)]
     private static void Postfix(MenuPageCosmetics __instance)
     {
         // Only run on the Cosmetics tab page (not the Presets/Outfits tab).
@@ -38,14 +38,16 @@ internal static class CosmeticsMenuStartPatch
         }
     }
 
-    // Appends SEARCH and SELECTED buttons at the end of the category strip.
-    // ReorderCategoryStrip will place them correctly afterwards.
+    // Appends SEARCH, SELECTED, FAV, and HIDE buttons to the category strip.
+    // ReorderCategoryStrip will place them in the correct visual order afterwards.
     private static void InjectVirtualCategoryButtons(MenuPageCosmetics page)
     {
         var entries = new[]
         {
-            (CosmeticsMenuState.SearchCategory,   "SEARCH"),
-            (CosmeticsMenuState.SelectedCategory, "SELECTED"),
+            (CosmeticsMenuState.SearchCategory,    "SEARCH"),
+            (CosmeticsMenuState.SelectedCategory,  "SELECTED"),
+            (CosmeticsMenuState.FavoritesCategory, "FAV"),
+            (CosmeticsMenuState.HiddenCategory,    "HIDE"),
         };
 
         foreach (var (cat, label) in entries)
@@ -71,7 +73,7 @@ internal static class CosmeticsMenuStartPatch
     }
 
     // Sets sibling indices to produce:
-    //   [PRESETS] [|] [SEARCH] [SELECTED] [HEAD] [BODY] [ARMS] [LEGS] [WORLD...]
+    //   [PRESETS] [|] [SEARCH] [SELECTED] [|] [FAV] [HEAD] [BODY] [ARMS] [LEGS] [WORLD] [HIDE]
     // The second "|" is inserted by InjectSecondDivider after this runs.
     private static void ReorderCategoryStrip(MenuPageCosmetics page)
     {
@@ -81,11 +83,15 @@ internal static class CosmeticsMenuStartPatch
             (new[] { "|" },                                        true),
             (new[] { "SEARCH" },                                   false),
             (new[] { "SELECTED", "EQUIPPED" },                     false),
+            (new[] { "FAV" },                                      false),
             (new[] { "HEAD" },                                     false),
             (new[] { "BODY" },                                     false),
             (new[] { "ARMS" },                                     false),
             (new[] { "LEGS" },                                     false),
-            // WORLD is injected by WorldCosmeticsMenuStartPatch and lands after LEGS naturally.
+            // WORLD is matched here if already injected; otherwise WorldCosmeticsMenuStartPatch
+            // places it after LEGS via MoveAfter, which inserts it before HIDE naturally.
+            (new[] { "WORLD" },                                    false),
+            (new[] { "HIDE" },                                     false),
         };
 
         var buttons = page.categoriesTransform
@@ -167,7 +173,7 @@ internal static class CosmeticsMenuStartPatch
             var cat = btn.category;
             if (CosmeticsMenuState.IsVirtual(cat)) continue;
             if (WorldCosmeticsMenuState.IsWorldCategory(cat)) continue;
-            if (IsPresetsCategory(cat)) continue;
+            if (CosmeticsMenuState.IsPresetsCategory(cat)) continue;
             if (cat.typeList == null) continue;
 
             foreach (var type in cat.typeList)
@@ -180,6 +186,13 @@ internal static class CosmeticsMenuStartPatch
         // Give each virtual category its own list so mutations don't alias.
         search.typeList   = new System.Collections.Generic.List<SemiFunc.CosmeticType>(result);
         selected.typeList = new System.Collections.Generic.List<SemiFunc.CosmeticType>(result);
+
+        if (CosmeticsMenuState.FavoritesCategory != null)
+            CosmeticsMenuState.FavoritesCategory.typeList =
+                new System.Collections.Generic.List<SemiFunc.CosmeticType>(result);
+        if (CosmeticsMenuState.HiddenCategory != null)
+            CosmeticsMenuState.HiddenCategory.typeList =
+                new System.Collections.Generic.List<SemiFunc.CosmeticType>(result);
     }
 
     // ── UI injection ─────────────────────────────────────────────────────────
@@ -379,12 +392,6 @@ internal static class CosmeticsMenuStartPatch
         if (btn.category?.categoryName != null) yield return btn.category.categoryName;
         var tmp = btn.GetComponentInChildren<TextMeshProUGUI>();
         if (tmp != null && !string.IsNullOrWhiteSpace(tmp.text)) yield return tmp.text;
-    }
-
-    private static bool IsPresetsCategory(CosmeticCategoryAsset cat)
-    {
-        string n = Normalize(cat.categoryName ?? cat.name ?? "");
-        return n == "PRESETS" || n == "PRESET" || n == "OUTFITS" || n == "OUTFIT";
     }
 
     private static string Normalize(string s)

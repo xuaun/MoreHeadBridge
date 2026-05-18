@@ -14,20 +14,27 @@ internal static class CosmeticsMenuState
 {
     // ── Virtual categories ──────────────────────────────────────────────────
 
-    internal static CosmeticCategoryAsset? SelectedCategory { get; private set; }
-    internal static CosmeticCategoryAsset? SearchCategory   { get; private set; }
+    internal static CosmeticCategoryAsset? SelectedCategory  { get; private set; }
+    internal static CosmeticCategoryAsset? SearchCategory    { get; private set; }
+    internal static CosmeticCategoryAsset? FavoritesCategory { get; private set; }
+    internal static CosmeticCategoryAsset? HiddenCategory    { get; private set; }
 
     // True for any category this mod injected (not a vanilla one).
     internal static bool IsVirtual(CosmeticCategoryAsset? c) =>
-        c != null && (c == SelectedCategory || c == SearchCategory);
+        c != null && (c == SelectedCategory || c == SearchCategory
+                   || c == FavoritesCategory || c == HiddenCategory);
 
-    internal static bool IsSelected(CosmeticCategoryAsset? c) => c != null && c == SelectedCategory;
-    internal static bool IsSearch(CosmeticCategoryAsset? c)   => c != null && c == SearchCategory;
+    internal static bool IsSelected    (CosmeticCategoryAsset? c) => c != null && c == SelectedCategory;
+    internal static bool IsSearch      (CosmeticCategoryAsset? c) => c != null && c == SearchCategory;
+    internal static bool IsFavCategory (CosmeticCategoryAsset? c) => c != null && c == FavoritesCategory;
+    internal static bool IsHideCategory(CosmeticCategoryAsset? c) => c != null && c == HiddenCategory;
 
     internal static void EnsureCategories()
     {
-        SelectedCategory ??= MakeCategory("MHB_Selected", "SELECTED");
-        SearchCategory   ??= MakeCategory("MHB_Search",   "SEARCH");
+        SelectedCategory  ??= MakeCategory("MHB_Selected",  "SELECTED");
+        SearchCategory    ??= MakeCategory("MHB_Search",    "SEARCH");
+        FavoritesCategory ??= MakeCategory("MHB_Favorites", "FAV");
+        HiddenCategory    ??= MakeCategory("MHB_Hidden",    "HIDE");
     }
 
     // ── UI elements injected into MenuPageCosmetics ─────────────────────────
@@ -87,6 +94,55 @@ internal static class CosmeticsMenuState
 
     internal static MenuPageCosmetics? ActivePage { get; private set; }
     internal static void SetActivePage(MenuPageCosmetics? v) => ActivePage = v;
+
+    // Call from the MenuPageCosmetics.OnDestroy patch to avoid stale references.
+    // Stops any pending search debounce on the dying page before nulling it.
+    internal static void OnMenuClosed()
+    {
+        if (_searchDebounce != null && ActivePage != null)
+            ActivePage.StopCoroutine(_searchDebounce);
+        _searchDebounce = null;
+        ActivePage = null;
+        _assetIndexCache = null; // invalidate on menu close (MetaManager may reload)
+    }
+
+    // ── Asset-index cache ────────────────────────────────────────────────────
+    //
+    // Built lazily on first call per menu session and reused every LateUpdate
+    // frame instead of doing O(n) List.IndexOf per hovered cosmetic.
+
+    private static Dictionary<CosmeticAsset, int>? _assetIndexCache;
+
+    // Returns the index of `asset` in MetaManager.cosmeticAssets, or -1 if not found.
+    // The result is cached for the lifetime of the current menu session.
+    internal static int GetAssetIndex(CosmeticAsset asset)
+    {
+        if (MetaManager.instance == null) return -1;
+
+        if (_assetIndexCache == null)
+        {
+            var list = MetaManager.instance.cosmeticAssets;
+            _assetIndexCache = new Dictionary<CosmeticAsset, int>(list.Count);
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] != null)
+                    _assetIndexCache[list[i]] = i;
+            }
+        }
+
+        return _assetIndexCache.TryGetValue(asset, out int idx) ? idx : -1;
+    }
+
+    // ── Shared predicates ────────────────────────────────────────────────────
+
+    // True for the vanilla PRESETS / OUTFITS tab — used by multiple patches to
+    // decide whether to skip their cosmetics-specific logic.
+    internal static bool IsPresetsCategory(CosmeticCategoryAsset? cat)
+    {
+        if (cat == null) return false;
+        string name = (cat.categoryName ?? cat.name ?? "").ToUpperInvariant();
+        return name.Contains("PRESET") || name.Contains("OUTFIT");
+    }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

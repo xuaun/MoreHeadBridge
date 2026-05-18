@@ -223,5 +223,7 @@ internal static class BatchIconGeneratorMenuClosePatch
     {
         BatchIconGenerator.NotifyMenuClosed();
         CosmeticHoverPatch.OnMenuClosed();
+        CosmeticsMenuState.OnMenuClosed();
+        CosmeticsMenuLateUpdatePatch.OnMenuClosed(); // E3: reset idle-hint timer
     }
 }

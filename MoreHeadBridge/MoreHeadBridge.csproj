@@ -36,6 +36,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <EmbeddedResource Include="Icons\star.png" />
+        <EmbeddedResource Include="Icons\hide.png" />
+    </ItemGroup>
+
+    <ItemGroup>
         <Reference Include="$(RepoPath)$(SubPath)*Unity*" Private="false" />
         <Reference Include="$(RepoPath)$(SubPath)Assembly-CSharp*" Publicize="true" Private="false" />
         <Reference Include="$(RepoPath)$(SubPath)Newtonsoft*" Private="false" />
