@@ -262,21 +262,13 @@ internal static class CosmeticsFilterPatch
 
     // ── Favorite / hidden / modded(rarity/border) sorting ──────────────────────────────────
     //
-    // Every call to RefreshScrollContent destroys and recreates sections, so
-    // sibling indices after vanilla's creation always reflect the LINQ order
-    // (locked-last → rarity-desc → name-asc).  We use those indices as the
-    // stable sort key so groups move to the front while their relative order
-    // within each group is preserved.
+    // Sort keys applied in order:
+    //   1. Group:   favorite(0)  |  normal(1)  |  hidden-at-end(3, SELECTED only)
+    //   2. Lock:    unlocked(0)  |  locked(1)
+    //   3. Origin:  bridge(0)    |  vanilla(1)   ← only when HighlightModdedCosmetics=true
+    //   4. Sibling: vanilla rarity order (UltraRare → Rare → Uncommon → Common → name-asc)
     //
-    // Sort priority for visible buttons:
-    //   0 = favorite
-    //   1 = modded / bridge (rarity/border)   ← only when HighlightModdedCosmetics == true
-    //   2 = normal (non-fav, non-modded, non-hidden)
-    //   3 = hidden            ← only when hiddenAtEnd == true (SELECTED tab)
-    //
-    // Within each priority group the existing sibling index (vanilla rarity
-    // order) is preserved as the tiebreaker, so the effective order is:
-    //   Modded rarity → UltraRare → Rare → Uncommon → Common
+    // Bridge acts as a rarity tier above UltraRare
     //
     // Inactive buttons (truly hidden in the UI sense — not the user-hidden
     // concept) always go at the very end, after all visible buttons.
@@ -318,19 +310,15 @@ internal static class CosmeticsFilterPatch
             // Nothing to do in this section — skip the rebuild.
             if (!hasFavsHere && !hasHiddenHere && !hasModdedHere) continue;
 
-            // Stably sort visible buttons by priority, then by bridge-first within
-            // the fav and hidden groups, then by vanilla sibling index (rarity-desc →
-            // name-asc) as the final tiebreaker within each sub-group.
             var sorted = cosmeticButtons
                 .Where(b => b.gameObject.activeSelf)
                 .OrderBy(b =>
                 {
-                    if (BridgeFavoritesManager.IsFavorite(b.cosmeticAsset))              return 0;
-                    if (moddedFirst && BridgeIds.IsBridgeAsset(b.cosmeticAsset))         return 1;
-                    if (hasHidden   && BridgeFavoritesManager.IsHidden(b.cosmeticAsset)) return 3;
-                    return 2;
+                    if (BridgeFavoritesManager.IsFavorite(b.cosmeticAsset))            return 0;
+                    if (hasHidden && BridgeFavoritesManager.IsHidden(b.cosmeticAsset)) return 3;
+                    return 1;
                 })
-                // Within fav (0) and hidden (3): bridge assets first when moddedFirst.
+                .ThenBy(b => IsUnlocked(b) ? 0 : 1)
                 .ThenBy(b => moddedFirst && BridgeIds.IsBridgeAsset(b.cosmeticAsset) ? 0 : 1)
                 .ThenBy(b => b.transform.GetSiblingIndex())
                 .ToArray();
@@ -352,6 +340,14 @@ internal static class CosmeticsFilterPatch
             if (listRect != null)
                 LayoutRebuilder.ForceRebuildLayoutImmediate(listRect);
         }
+    }
+
+    private static bool IsUnlocked(MenuElementCosmeticButton btn)
+    {
+        if (MetaManager.instance == null) return true;
+        int idx = CosmeticsMenuState.GetAssetIndex(btn.cosmeticAsset);
+        if (idx < 0) return true;
+        return MetaManager.instance.cosmeticUnlocks.Contains(idx);
     }
 
     // ── Mirrors vanilla's sticky-header padding ───────────────────────────────
@@ -410,8 +406,7 @@ internal static class CosmeticsFilterPatch
 
         // For SEARCH and SELECTED: additionally sort favorites first (and hidden last
         // for SELECTED), preserving vanilla order within each group via index.
-        // Priority numbers mirror SortFavoritesInCategory: 0=fav, 1=modded, 2=normal, 3=hidden.
-        // All world assets are bridge assets, so non-fav non-hidden ones land at 1 (modded).
+        // All world assets are bridge assets, so no bridge/vanilla split is needed here.
         if (isSearch || isSelected)
         {
             bool hiddenAtEnd = isSelected;
