@@ -36,8 +36,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Icons\star.png" />
-        <EmbeddedResource Include="Icons\hide.png" />
+        <EmbeddedResource Include="Icons\Resources\star.png" />
+        <EmbeddedResource Include="Icons\Resources\hide.png" />
     </ItemGroup>
 
     <ItemGroup>
