@@ -212,10 +212,10 @@ internal static class CosmeticsFilterPatch
             yPos -= sectionH + SectionSpacing;
         }
 
-        // Sort: clear button → favorites → (hidden at end for SELECTED) → rest.
-        // Runs for non-virtual categories AND for SEARCH / SELECTED virtual tabs.
-        // FAV and HIDE tabs keep vanilla order already; no extra sort needed there.
-        if (!isVirtual || isSearch || isSelected)
+        // Sort: clear button → favorites → modded → (hidden at end for SELECTED) → rest.
+        // Runs for all non-virtual categories AND for all virtual tabs.
+        //   FAV and HIDE  — bridge favorites appear before vanilla items.
+        if (!isVirtual || isSearch || isSelected || isFav || isHide)
             SortFavoritesInCategory(__instance, hiddenAtEnd: isSelected);
 
         // Inject a dedicated World section after all other sections (virtual only).
@@ -260,26 +260,24 @@ internal static class CosmeticsFilterPatch
             RebuildScroll(__instance);
     }
 
-    // ── Favorite / hidden sorting ────────────────────────────────────────────
+    // ── Favorite / hidden / modded(rarity/border) sorting ──────────────────────────────────
     //
-    // Every call to RefreshScrollContent destroys and recreates sections, so
-    // sibling indices after vanilla's creation always reflect the LINQ order
-    // (locked-last → rarity-desc → name-asc).  We use those indices as the
-    // stable sort key so groups move to the front while their relative order
-    // within each group is preserved.
+    // Sort keys applied in order:
+    //   1. Group:   favorite(0)  |  normal(1)  |  hidden-at-end(3, SELECTED only)
+    //   2. Lock:    unlocked(0)  |  locked(1)
+    //   3. Origin:  bridge(0)    |  vanilla(1)   ← only when HighlightModdedCosmetics=true
+    //   4. Sibling: vanilla rarity order (UltraRare → Rare → Uncommon → Common → name-asc)
     //
-    // Sort priority for visible buttons:
-    //   0 = favorite
-    //   1 = normal (non-fav, non-hidden)
-    //   2 = hidden  ← only when hiddenAtEnd == true (SELECTED tab)
+    // Bridge acts as a rarity tier above UltraRare
     //
     // Inactive buttons (truly hidden in the UI sense — not the user-hidden
     // concept) always go at the very end, after all visible buttons.
     private static void SortFavoritesInCategory(MenuPageCosmetics page,
                                                 bool hiddenAtEnd = false)
     {
-        bool hasFavs   = BridgeFavoritesManager.HasAnyFavorite();
-        bool hasHidden = hiddenAtEnd && BridgeFavoritesManager.HasAnyHidden();
+        bool hasFavs     = BridgeFavoritesManager.HasAnyFavorite();
+        bool hasHidden   = hiddenAtEnd && BridgeFavoritesManager.HasAnyHidden();
+        bool moddedFirst = Plugin.HighlightModdedCosmetics.Value;
 
         foreach (var section in page.sections)
         {
@@ -293,8 +291,8 @@ internal static class CosmeticsFilterPatch
                 if (btn != null && btn.cosmeticAsset != null && btn.gameObject.activeSelf)
                     FavHideMarkerHelper.UpdateMarker(btn);
 
-            // Nothing to reorder if there are no favorites and no hidden-at-end.
-            if (!hasFavs && !hasHidden) continue;
+            // Nothing to reorder if none of the three conditions apply.
+            if (!hasFavs && !hasHidden && !moddedFirst) continue;
 
             // Clear button = cosmeticAsset == null (first slot of the sectionPrefab).
             var clearButton     = allButtons.FirstOrDefault(b => b != null && b.cosmeticAsset == null);
@@ -306,20 +304,22 @@ internal static class CosmeticsFilterPatch
                 b.gameObject.activeSelf && BridgeFavoritesManager.IsFavorite(b.cosmeticAsset));
             bool hasHiddenHere = hasHidden && cosmeticButtons.Any(b =>
                 b.gameObject.activeSelf && BridgeFavoritesManager.IsHidden(b.cosmeticAsset));
+            bool hasModdedHere = moddedFirst && cosmeticButtons.Any(b =>
+                b.gameObject.activeSelf && BridgeIds.IsBridgeAsset(b.cosmeticAsset));
 
             // Nothing to do in this section — skip the rebuild.
-            if (!hasFavsHere && !hasHiddenHere) continue;
+            if (!hasFavsHere && !hasHiddenHere && !hasModdedHere) continue;
 
-            // Stably sort visible buttons by priority, then by their current sibling
-            // index (= vanilla LINQ order after instantiation) within each group.
             var sorted = cosmeticButtons
                 .Where(b => b.gameObject.activeSelf)
                 .OrderBy(b =>
                 {
-                    if (BridgeFavoritesManager.IsFavorite(b.cosmeticAsset)) return 0;
-                    if (hasHidden && BridgeFavoritesManager.IsHidden(b.cosmeticAsset)) return 2;
+                    if (BridgeFavoritesManager.IsFavorite(b.cosmeticAsset))            return 0;
+                    if (hasHidden && BridgeFavoritesManager.IsHidden(b.cosmeticAsset)) return 3;
                     return 1;
                 })
+                .ThenBy(b => IsUnlocked(b) ? 0 : 1)
+                .ThenBy(b => moddedFirst && BridgeIds.IsBridgeAsset(b.cosmeticAsset) ? 0 : 1)
                 .ThenBy(b => b.transform.GetSiblingIndex())
                 .ToArray();
 
@@ -340,6 +340,14 @@ internal static class CosmeticsFilterPatch
             if (listRect != null)
                 LayoutRebuilder.ForceRebuildLayoutImmediate(listRect);
         }
+    }
+
+    private static bool IsUnlocked(MenuElementCosmeticButton btn)
+    {
+        if (MetaManager.instance == null) return true;
+        int idx = CosmeticsMenuState.GetAssetIndex(btn.cosmeticAsset);
+        if (idx < 0) return true;
+        return MetaManager.instance.cosmeticUnlocks.Contains(idx);
     }
 
     // ── Mirrors vanilla's sticky-header padding ───────────────────────────────
@@ -398,13 +406,14 @@ internal static class CosmeticsFilterPatch
 
         // For SEARCH and SELECTED: additionally sort favorites first (and hidden last
         // for SELECTED), preserving vanilla order within each group via index.
+        // All world assets are bridge assets, so no bridge/vanilla split is needed here.
         if (isSearch || isSelected)
         {
             bool hiddenAtEnd = isSelected;
             worldAssets = worldAssets
                 .Select((a, i) => (a, i))
                 .OrderBy(t => BridgeFavoritesManager.IsFavorite(t.a) ? 0
-                            : (hiddenAtEnd && BridgeFavoritesManager.IsHidden(t.a) ? 2 : 1))
+                            : (hiddenAtEnd && BridgeFavoritesManager.IsHidden(t.a) ? 3 : 1))
                 .ThenBy(t => t.i)
                 .Select(t => t.a)
                 .ToList();

@@ -42,6 +42,11 @@ public class Plugin : BaseUnityPlugin
     // When true, multiple cosmetics of the same type can be equipped simultaneously.
     public static ConfigEntry<bool> AllowMultipleCosmetics { get; private set; } = null!;
 
+    // When true, bridge cosmetics display an orange border in the cosmetics menu
+    // to distinguish them from vanilla cosmetics at a glance.
+    // The actual rarity (sort position) is still controlled by DefaultRarity.
+    public static ConfigEntry<bool> HighlightModdedCosmetics { get; private set; } = null!;
+
     // Rarity assigned to bridge cosmetics in the vanilla cosmetics shop.
     // Common is the default — Uncommon/Rare/UltraRare make them appear in higher tiers.
     public static ConfigEntry<SemiFunc.Rarity> DefaultRarity { get; private set; } = null!;
@@ -98,11 +103,23 @@ public class Plugin : BaseUnityPlugin
             description: "If true, removes the MoreHead button from all menus so you can use only the vanilla cosmetics UI. Requires restart."
         );
 
+        HighlightModdedCosmetics = Config.Bind(
+            section: "General",
+            key: "HighlightModdedCosmetics",
+            defaultValue: true,
+            description: "When TRUE (default), bridge cosmetics show an orange border in the cosmetics menu,\n" +
+                         "making them visually distinct from vanilla cosmetics at a glance.\n" +
+                         "The sort position is unaffected — it is still controlled by DefaultRarity.\n" +
+                         "When FALSE, bridge cosmetics use the standard rarity border color like any vanilla cosmetic."
+        );
+
         DefaultRarity = Config.Bind(
             section: "General",
             key: "DefaultRarity",
             defaultValue: SemiFunc.Rarity.Common,
-            description: "Rarity tier assigned to bridge cosmetics in the vanilla shop. Values: Common, Uncommon, Rare, UltraRare."
+            description: "Rarity tier assigned to bridge cosmetics in the vanilla shop. Values: Common, Uncommon, Rare, UltraRare.\n" +
+                         "Controls sort position in the menu (UltraRare appears first, Common last).\n" +
+                         "The visual border color is controlled separately by HighlightModdedCosmetics."
         );
 
         SearchFieldPosition = Config.Bind(
