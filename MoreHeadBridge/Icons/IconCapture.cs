@@ -20,14 +20,78 @@ internal static class IconCapture
 {
     private const int OutSize = 128;
 
-    // Private cache directory. REPOLib's MetaManagerPatch.AwakePatch wipes any PNG in
-    // %persistentDataPath%\Cache\Icons\Cosmetics\ that doesn't match a vanilla cosmetic
-    // name — including ours — at every launch. By storing icons OUTSIDE that path we
-    // keep them around. Our GetIconPatch loads from here directly, so we never need
-    // vanilla's cache to know about them.
+    // Private cache directory.
+    //   %persistentDataPath%\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\
+    //
+    // REPOLib's MetaManagerPatch.AwakePatch wipes %persistentDataPath%\Cache\Icons\Cosmetics\
+    // for any PNG that doesn't match a vanilla cosmetic name. Our folder sits alongside it
+    // in CosmeticsModded\ — same parent, different sibling — so REPOLib never touches it.
+    // GetIconPatch loads from here directly; vanilla's cache never needs to know about them.
+    //
+    // Legacy path (< fix/folder-paths): %persistentDataPath%\MoreHeadBridge_Icons\
+    // Files are migrated automatically on first run after the update.
     private static string? _cacheDir;
-    internal static string CacheDir =>
-        _cacheDir ??= Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons");
+    internal static string CacheDir
+    {
+        get
+        {
+            if (_cacheDir != null) return _cacheDir;
+            _cacheDir = Path.Combine(Application.persistentDataPath,
+                                     "Cache", "Icons", "CosmeticsModded", "MoreHeadBridge_CosmeticsIcons");
+            MigrateLegacyCache(_cacheDir);
+            return _cacheDir;
+        }
+    }
+
+    // Moves PNGs from the old root-level cache folder to the new structured path.
+    // Runs once (when CacheDir is first evaluated). Non-fatal: a warning is logged
+    // on failure and the player can regenerate icons with AutoCaptureIcons/GenerateAllIcons.
+    private static void MigrateLegacyCache(string newDir)
+    {
+        string oldDir = Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons");
+        if (!Directory.Exists(oldDir)) return;
+
+        Plugin.Logger.LogInfo($"IconCapture: migrating icon cache from legacy location...");
+        try
+        {
+            Directory.CreateDirectory(newDir);
+            int moved = 0, failed = 0;
+
+            foreach (string file in Directory.GetFiles(oldDir, "*.png"))
+            {
+                string dest = Path.Combine(newDir, Path.GetFileName(file));
+                try
+                {
+                    if (!File.Exists(dest))
+                        File.Move(file, dest);
+                    else
+                        File.Delete(file); // already migrated on a previous partial run
+                    moved++;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    Plugin.Logger.LogWarning(
+                        $"IconCapture: could not migrate '{Path.GetFileName(file)}': {ex.Message}");
+                }
+            }
+
+            // Remove the old directory if it is now empty.
+            try
+            {
+                if (Directory.GetFiles(oldDir).Length == 0)
+                    Directory.Delete(oldDir, recursive: false);
+            }
+            catch { /* non-fatal — leave the empty folder, it causes no harm */ }
+
+            Plugin.Logger.LogInfo(
+                $"IconCapture: cache migration done — {moved} moved, {failed} failed.");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Logger.LogWarning($"IconCapture: cache migration failed: {ex.Message}");
+        }
+    }
 
     internal static string CachePathFor(CosmeticAsset asset)
     {

@@ -147,10 +147,10 @@ public class Plugin : BaseUnityPlugin
                           "             fallback icons.\n" +
                           "\n" +
                           "PNG cache lives in:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\MoreHeadBridge_Icons\\\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Delete that folder to wipe all generated icons.\n" +
-                          "(We store icons OUTSIDE the vanilla cosmetics cache because REPOLib\n" +
-                          " wipes that one on every launch for any non-vanilla cosmetic.)"
+                          "(Icons are stored in Cache\\Icons\\CosmeticsModded\\ — a sibling of the vanilla\n" +
+                          " Cache\\Icons\\Cosmetics\\ that REPOLib wipes, so ours are never touched.)"
         );
 
         GenerateAllIcons = Config.Bind(
@@ -177,7 +177,7 @@ public class Plugin : BaseUnityPlugin
             key: "DeleteIconCache",
             defaultValue: false,
             description: "ONE-SHOT trigger. When TRUE on launch, delete cached bridge icon PNGs from:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\MoreHeadBridge_Icons\\\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Use DeleteIconsMatching to filter which ones to delete.\n" +
                           "Auto-resets to FALSE after running."
         );

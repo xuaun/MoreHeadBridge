@@ -8,9 +8,16 @@ namespace MoreHeadBridge;
 
 // Stores a per-cosmetic color override (assetId → colorIndex) on top of vanilla's
 // per-type color system. Applied as a postfix override after SetupColorsLogic runs.
+//
+// Data is written to:
+//   BepInEx\config\MoreHeadBridge_PerCosmeticColors.json
 internal static class PerCosmeticColors
 {
     private static readonly string SavePath =
+        Path.Combine(BepInEx.Paths.ConfigPath, "MoreHeadBridge_PerCosmeticColors.json");
+
+    // Old location (before the fix/folder-paths refactor). Used only for one-time migration.
+    private static readonly string LegacyPath =
         Path.Combine(Application.persistentDataPath, "MoreHeadBridge_PerCosmeticColors.json");
 
     private static Dictionary<string, int> _colors = new();
@@ -63,9 +70,27 @@ internal static class PerCosmeticColors
     {
         try
         {
-            if (!File.Exists(SavePath)) return;
+            // One-time migration: move the file from the old persistentDataPath location
+            // to the new BepInEx/config location so existing color overrides are preserved.
+            if (!File.Exists(SavePath) && File.Exists(LegacyPath))
+            {
+                try
+                {
+                    File.Move(LegacyPath, SavePath);
+                    Plugin.Logger.LogInfo("PerCosmeticColors: migrated save file to BepInEx/config.");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Logger.LogWarning($"PerCosmeticColors: migration failed, loading from old location: {ex.Message}");
+                    // Fall through — try to read from legacy path below.
+                }
+            }
+
+            string pathToRead = File.Exists(SavePath) ? SavePath : LegacyPath;
+            if (!File.Exists(pathToRead)) return;
+
             _colors = JsonConvert.DeserializeObject<Dictionary<string, int>>(
-                          File.ReadAllText(SavePath)) ?? new();
+                          File.ReadAllText(pathToRead)) ?? new();
         }
         catch (Exception ex)
         {
