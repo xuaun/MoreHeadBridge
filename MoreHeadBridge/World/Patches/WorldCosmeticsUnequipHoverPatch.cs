@@ -1,5 +1,4 @@
 using HarmonyLib;
-using System.Collections.Generic;
 
 namespace MoreHeadBridge;
 
@@ -22,20 +21,7 @@ internal static class WorldCosmeticsUnequipHoverPatch
         if (meta == null) return;
 
         // Partition equipped Hat-type cosmetics by subtype.
-        var equippedRealHats = new List<int>();
-        var equippedWorlds   = new List<int>();
-
-        foreach (int idx in meta.cosmeticEquipped)
-        {
-            if (idx < 0 || idx >= meta.cosmeticAssets.Count) continue;
-            var asset = meta.cosmeticAssets[idx];
-            if (asset?.type != SemiFunc.CosmeticType.Hat) continue;
-
-            if (HhhCosmeticLoader.IsWorldAsset(asset))
-                equippedWorlds.Add(idx);
-            else
-                equippedRealHats.Add(idx);
-        }
+        WorldCosmeticsMenuState.PartitionHatCosmetics(meta, out var equippedRealHats, out var equippedWorlds);
 
         // Nothing to protect if neither type was equipped.
         if (equippedRealHats.Count == 0 && equippedWorlds.Count == 0) return;

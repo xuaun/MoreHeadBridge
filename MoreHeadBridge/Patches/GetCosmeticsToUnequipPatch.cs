@@ -38,16 +38,19 @@ internal static class GetCosmeticsToUnequipPatch
             bool equippedIsWorld = HhhCosmeticLoader.IsWorldAsset(cosmeticAsset);
             bool worldSlotInvolved = newIsWorld || equippedIsWorld;
 
+            // Both worlds — keep both when multi-equip is on.
             if (newIsWorld && equippedIsWorld)
             {
-                __result.Add(cosmeticAsset);
+                if (!Plugin.AllowMultipleCosmetics.Value)
+                    __result.Add(cosmeticAsset);
                 continue;
             }
 
             bool sameExclusiveType =
                 !worldSlotInvolved &&
                 cosmeticAsset.type == _cosmeticAssetNew.type &&
-                !(cosmeticTypeAsset?.canEquipMultiple ?? false);
+                !(cosmeticTypeAsset?.canEquipMultiple ?? false) &&
+                !MultiEquipTypes.IsEnabled(_cosmeticAssetNew);
 
             bool typeDisabled =
                 !worldSlotInvolved &&
