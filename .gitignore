@@ -68,3 +68,6 @@ artifacts/
 
 # Local build paths — machine-specific, not committed
 Directory.Build.props
+
+# C# cache files
+*.lscache

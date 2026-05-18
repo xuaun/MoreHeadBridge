@@ -34,20 +34,34 @@ internal static class GetCosmeticsToUnequipPatch
                 continue;
 
             CosmeticTypeAsset? cosmeticTypeAsset2 = GetTypeAsset(__instance, cosmeticAsset.type);
+            bool newIsWorld = HhhCosmeticLoader.IsWorldAsset(_cosmeticAssetNew);
+            bool equippedIsWorld = HhhCosmeticLoader.IsWorldAsset(cosmeticAsset);
+            bool worldSlotInvolved = newIsWorld || equippedIsWorld;
+
+            if (newIsWorld && equippedIsWorld)
+            {
+                __result.Add(cosmeticAsset);
+                continue;
+            }
 
             bool sameExclusiveType =
+                !worldSlotInvolved &&
                 cosmeticAsset.type == _cosmeticAssetNew.type &&
                 !(cosmeticTypeAsset?.canEquipMultiple ?? false);
 
             bool typeDisabled =
-                ContainsType(cosmeticTypeAsset?.disabledTypeList, cosmeticTypeAsset2) ||
-                ContainsType(cosmeticTypeAsset2?.disabledTypeList, cosmeticTypeAsset);
+                !worldSlotInvolved &&
+                (TypeListContains(cosmeticTypeAsset?.disabledTypeList, cosmeticTypeAsset2) ||
+                 TypeListContains(cosmeticTypeAsset2?.disabledTypeList, cosmeticTypeAsset));
 
             if (sameExclusiveType || typeDisabled)
             {
                 __result.Add(cosmeticAsset);
                 continue;
             }
+
+            if (worldSlotInvolved)
+                continue;
 
             foreach (CosmeticCustomCondition.Type disabledCustomType in cosmeticTypeAsset?.disabledCustomTypeList ?? [])
             {
@@ -72,7 +86,8 @@ internal static class GetCosmeticsToUnequipPatch
         return metaManager.cosmeticTypeAssets[index];
     }
 
-    private static bool ContainsType(List<SemiFunc.CosmeticType>? list, CosmeticTypeAsset? asset)
+    // Checks whether a type list includes the type of a given CosmeticTypeAsset.
+    private static bool TypeListContains(List<SemiFunc.CosmeticType>? list, CosmeticTypeAsset? asset)
         => list != null && asset != null && list.Contains(asset.type);
 
     private static bool ContainsCustomType(

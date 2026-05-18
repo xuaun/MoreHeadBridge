@@ -10,7 +10,7 @@ namespace MoreHeadBridge;
 // paths with a single finalizer. CustomTypesLogic only fires optional condition
 // sets (e.g. CosmeticPlayerCrown), so swallowing the NPE has no visual effect.
 [HarmonyPatch(typeof(Cosmetic), "CustomTypesLogic")]
-internal static class CosmeticUpdatePatch
+internal static class CustomTypesLogicNpeGuardPatch
 {
     [HarmonyFinalizer]
     private static Exception? Finalizer(Cosmetic __instance, Exception? __exception)
