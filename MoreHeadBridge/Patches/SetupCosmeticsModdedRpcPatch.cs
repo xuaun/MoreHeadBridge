@@ -6,18 +6,11 @@ using System.Reflection;
 
 namespace MoreHeadBridge;
 
-// REPOLib sends RPCs in this order:
-//   1. SetupCosmeticsRPC   (vanilla indices)   ← arrives first on remote
-//   2. SetupCosmeticsModdedRPC (all assetIds)  ← arrives second
-//
-// REPOLib's SetupCosmeticsLogicPatch intercepts SetupCosmeticsLogic and injects modded
-// cosmetics from cosmeticEquipped — but cosmeticEquipped isn't populated until the
-// modded RPC fires. Result: bridge cosmetics appear one equip behind.
-//
-// Fix: patch SetupCosmeticsModdedRPC (postfix). When it arrives with bridge cosmetics,
-// immediately call SetupCosmeticsLogic again so SetupCosmeticsLogicPatch can inject the
-// now-populated cosmeticEquipped (vanilla + bridge assetIds) into the cosmetics logic.
-internal static class ModdedRpcRetrigger
+// REPOLib populates cosmeticEquipped only when SetupCosmeticsModdedRPC arrives, after the
+// vanilla RPC — so bridge cosmetics appear one equip behind. Postfix re-triggers SetupCosmeticsLogic
+// immediately after the modded RPC so REPOLib's own patch can inject the full equipped list.
+// Registered manually because the target type (REPOLib.Objects.PlayerCosmeticsModded) may be absent.
+internal static class SetupCosmeticsModdedRpcPatch
 {
     private static FieldInfo? _cosmeticEquippedField;
 
@@ -38,7 +31,7 @@ internal static class ModdedRpcRetrigger
             _cosmeticEquippedField = AccessTools.Field(type, "cosmeticEquipped");
             if (_cosmeticEquippedField == null) return;
 
-            var postfix = typeof(ModdedRpcRetrigger).GetMethod(
+            var postfix = typeof(SetupCosmeticsModdedRpcPatch).GetMethod(
                 nameof(Postfix),
                 BindingFlags.Static | BindingFlags.NonPublic);
 

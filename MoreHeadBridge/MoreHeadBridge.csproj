@@ -22,6 +22,7 @@
         <RepoPath Condition="'$(RepoPath)' == ''">$(REPO_MANAGED_PATH)</RepoPath>
         <BepInExPath Condition="'$(BepInExPath)' == ''">$(BEPINEX_CORE_PATH)</BepInExPath>
         <REPOLibPath Condition="'$(REPOLibPath)' == ''">$(REPOLIB_PATH)</REPOLibPath>
+    <MenuLibPath Condition="'$(MenuLibPath)' == ''">$(MENULIB_PATH)</MenuLibPath>
         <SubPath Condition="'$(SubPath)' == ''" />
     </PropertyGroup>
 
@@ -50,6 +51,9 @@
         <Reference Include="$(BepInExPath)BepInEx.dll" Private="false" />
         <Reference Include="$(BepInExPath)0Harmony.dll" Private="false" />
         <Reference Include="$(REPOLibPath)REPOLib.dll" Private="false" />
+    <!-- MenuLib is a soft dependency — only referenced if MenuLibPath is set. -->
+    <Reference Include="$(MenuLibPath)MenuLib.dll" Private="false"
+               Condition="'$(MenuLibPath)' != ''" />
     </ItemGroup>
 
 </Project>

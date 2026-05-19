@@ -88,4 +88,21 @@ internal static class RandomizeHiddenFilterPatch
 
         _removed.Clear();
     }
+
+    [HarmonyFinalizer]
+    private static Exception? Finalizer(Exception? __exception)
+    {
+        if (_removed.Count > 0)
+        {
+            var meta = MetaManager.instance;
+            if (meta != null)
+                meta.cosmeticUnlocks.AddRange(_removed);
+            _removed.Clear();
+
+            Plugin.Logger.LogWarning(
+                "RandomizeHiddenFilterPatch: vanilla threw during Randomize — " +
+                "hidden cosmetics restored to unlock record via Finalizer.");
+        }
+        return __exception;
+    }
 }

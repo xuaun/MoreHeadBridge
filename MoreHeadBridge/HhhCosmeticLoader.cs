@@ -40,6 +40,22 @@ internal static class HhhCosmeticLoader
     private static readonly HashSet<string> _usedPrefabIds = [];
     private static readonly HashSet<string> _usedInternalNames = [];
 
+    // Original type per assetId (derived from the .hhh filename tag at load time).
+    private static readonly Dictionary<string, OverrideCosmeticType> _originalTypes = new();
+
+    private static readonly Dictionary<string, OverrideCosmeticType> TagToOverrideType = new()
+    {
+        ["head"]     = OverrideCosmeticType.Hat,
+        ["neck"]     = OverrideCosmeticType.HeadBottom,
+        ["body"]     = OverrideCosmeticType.BodyTop,
+        ["hip"]      = OverrideCosmeticType.BodyBottom,
+        ["rightarm"] = OverrideCosmeticType.ArmRight,
+        ["leftarm"]  = OverrideCosmeticType.ArmLeft,
+        ["rightleg"] = OverrideCosmeticType.LegRight,
+        ["leftleg"]  = OverrideCosmeticType.LegLeft,
+        ["world"]    = OverrideCosmeticType.World,
+    };
+
     public static void LoadAll()
     {
         string pluginsPath = BepInEx.Paths.PluginPath;
@@ -151,6 +167,12 @@ internal static class HhhCosmeticLoader
         // .hhh cosmetics don't have tintable PlayerMaterials, so disable the paint icon.
         cosmeticAsset.tintable = false;
 
+        if (TagToOverrideType.TryGetValue(tag, out var originalOverrideType))
+            _originalTypes[assetId] = originalOverrideType;
+
+        // Apply any per-cosmetic override (rarity / type) before registering.
+        PerCosmeticOverrides.ApplyIfPresent(cosmeticAsset);
+
         Cosmetics.RegisterCosmetic(cosmeticAsset);
 
         RegisteredAssetIds.Add(assetId);
@@ -238,4 +260,21 @@ internal static class HhhCosmeticLoader
 
     internal static bool IsWorldAsset(CosmeticAsset? asset)
         => asset != null && BridgeIds.IsBridgeAsset(asset) && WorldAssetIds.Contains(asset.assetId);
+
+    /// Restores a bridge cosmetic's rarity and type to the loader defaults
+    internal static void ReapplyDefaults(CosmeticAsset asset)
+    {
+        asset.rarity = Plugin.DefaultRarity.Value;
+
+        if (!_originalTypes.TryGetValue(asset.assetId, out var originalType))
+            return;
+
+        var (cosmeticType, isWorld) = PerCosmeticOverrides.ResolveType(originalType);
+        asset.type = cosmeticType;
+
+        if (isWorld)
+            WorldAssetIds.Add(asset.assetId);
+        else
+            WorldAssetIds.Remove(asset.assetId);
+    }
 }

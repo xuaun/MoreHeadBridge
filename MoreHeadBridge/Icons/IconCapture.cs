@@ -196,63 +196,72 @@ internal static class IconCapture
         }
     }
 
+    // Crop regions in normalized UV space (x, y=bottom, width, height).
+    // Calibrated empirically against the avatar preview RenderTexture.
+    // If the avatar rig, camera angle, or preview resolution changes after a
+    // game update, re-tune these values and delete the icon cache so they regenerate.
+    private static readonly Rect CropHead  = new(0.22f, 0.62f, 0.56f, 0.35f); // head, face, ears, eyewear
+    private static readonly Rect CropNeck  = new(0.22f, 0.50f, 0.56f, 0.38f); // neck / lower-face (HeadBottom) — starts below head, still above torso
+    private static readonly Rect CropBody  = new(0.18f, 0.34f, 0.64f, 0.36f); // torso
+    private static readonly Rect CropArmR  = new(0.05f, 0.30f, 0.50f, 0.40f); // right arm → left side of frame
+    private static readonly Rect CropArmL  = new(0.45f, 0.30f, 0.50f, 0.40f); // left arm  → right side of frame
+    private static readonly Rect CropLegR  = new(0.10f, 0.00f, 0.45f, 0.45f); // right leg/foot → left side
+    private static readonly Rect CropLegL  = new(0.45f, 0.00f, 0.45f, 0.45f); // left leg/foot  → right side
+    private static readonly Rect CropFull  = new(0f,    0f,    1f,    1f);     // world / unknown → full frame
+
     private static Rect GetCropRect(SemiFunc.CosmeticType type)
     {
         switch (type)
         {
-            // Head region (hat, face, eyewear, ears) — top portion of the avatar.
             case SemiFunc.CosmeticType.Hat:
             case SemiFunc.CosmeticType.HeadTopMesh:
-            case SemiFunc.CosmeticType.HeadBottom:
-            case SemiFunc.CosmeticType.HeadBottomMesh:
             case SemiFunc.CosmeticType.HeadTopOverlay:
-            case SemiFunc.CosmeticType.HeadBottomOverlay:
             case SemiFunc.CosmeticType.FaceTop:
             case SemiFunc.CosmeticType.FaceBottom:
             case SemiFunc.CosmeticType.Eyewear:
             case SemiFunc.CosmeticType.Ears:
             case SemiFunc.CosmeticType.EyeLidRightMesh:
             case SemiFunc.CosmeticType.EyeLidLeftMesh:
-                return new Rect(0.22f, 0.62f, 0.56f, 0.35f);
+                return CropHead;
 
-            // Torso — middle band.
+            case SemiFunc.CosmeticType.HeadBottom:
+            case SemiFunc.CosmeticType.HeadBottomMesh:
+            case SemiFunc.CosmeticType.HeadBottomOverlay:
+                return CropNeck;
+
             case SemiFunc.CosmeticType.BodyTop:
             case SemiFunc.CosmeticType.BodyTopMesh:
             case SemiFunc.CosmeticType.BodyBottom:
             case SemiFunc.CosmeticType.BodyBottomMesh:
             case SemiFunc.CosmeticType.BodyBottomOverlay:
             case SemiFunc.CosmeticType.BodyTopOverlay:
-                return new Rect(0.18f, 0.34f, 0.64f, 0.36f);
+                return CropBody;
 
-            // Right arm (character's right) → LEFT half of frame.
             case SemiFunc.CosmeticType.ArmRight:
             case SemiFunc.CosmeticType.ArmRightMesh:
             case SemiFunc.CosmeticType.ArmRightOverlay:
             case SemiFunc.CosmeticType.GrabberMesh:
-                return new Rect(0.05f, 0.30f, 0.50f, 0.40f);
+                return CropArmR;
 
-            // Left arm (character's left) → RIGHT half of frame.
             case SemiFunc.CosmeticType.ArmLeft:
             case SemiFunc.CosmeticType.ArmLeftMesh:
             case SemiFunc.CosmeticType.ArmLeftOverlay:
-                return new Rect(0.45f, 0.30f, 0.50f, 0.40f);
+                return CropArmL;
 
-            // Right leg / foot → LEFT half of bottom region.
             case SemiFunc.CosmeticType.LegRight:
             case SemiFunc.CosmeticType.LegRightMesh:
             case SemiFunc.CosmeticType.LegRightOverlay:
             case SemiFunc.CosmeticType.FootRight:
-                return new Rect(0.10f, 0.00f, 0.45f, 0.45f);
+                return CropLegR;
 
-            // Left leg / foot → RIGHT half of bottom region.
             case SemiFunc.CosmeticType.LegLeft:
             case SemiFunc.CosmeticType.LegLeftMesh:
             case SemiFunc.CosmeticType.LegLeftOverlay:
             case SemiFunc.CosmeticType.FootLeft:
-                return new Rect(0.45f, 0.00f, 0.45f, 0.45f);
+                return CropLegL;
 
             default:
-                return new Rect(0f, 0f, 1f, 1f);
+                return CropFull;
         }
     }
 

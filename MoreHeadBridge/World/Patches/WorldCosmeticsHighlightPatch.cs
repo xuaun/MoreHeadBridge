@@ -126,12 +126,13 @@ internal static class WorldCosmeticsSectionHighlightPatch
                 count++;
         }
 
-        __instance.highlightObj.text.text = count.ToString();
+        if (__instance.highlightObj.text != null)
+            __instance.highlightObj.text.text = count.ToString();
 
         // Sync the sticky header exactly as vanilla does.
         if (__instance.menuPageCosmetics != null &&
             __instance.menuPageCosmetics.selectedSubCategory == __instance.subCategory &&
-            __instance.menuPageCosmetics.stickyHeader?.highlightObj != null)
+            __instance.menuPageCosmetics.stickyHeader?.highlightObj?.text != null)
         {
             __instance.menuPageCosmetics.stickyHeader.highlightObj.text.text = count.ToString();
         }

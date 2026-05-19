@@ -188,6 +188,25 @@ internal static class WorldCosmeticsSetupPatch
         }
     }
 
+    internal static void SetAllWorldInstancesActive(bool active)
+    {
+        foreach (var list in _worldInstances.Values)
+            foreach (var go in list)
+                if (go != null) go.SetActive(active);
+    }
+
+    internal static void SetWorldAssetActive(CosmeticAsset asset, bool active)
+    {
+        foreach (var list in _worldInstances.Values)
+            foreach (var go in list)
+            {
+                if (go == null) continue;
+                var cosmetic = go.GetComponent<Cosmetic>();
+                if (cosmetic != null && cosmetic.cosmeticAsset == asset)
+                    go.SetActive(active);
+            }
+    }
+
     // Removes dictionary entries whose PlayerCosmetics key has been destroyed (player left).
     // PlayerCosmetics is a UnityEngine.Object, so destroyed instances compare equal to null.
     private static void PruneDestroyedInstances()
