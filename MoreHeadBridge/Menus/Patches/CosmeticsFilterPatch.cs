@@ -265,19 +265,18 @@ internal static class CosmeticsFilterPatch
     // Sort keys applied in order:
     //   1. Group:   favorite(0)  |  normal(1)  |  hidden-at-end(3, SELECTED only)
     //   2. Lock:    unlocked(0)  |  locked(1)
-    //   3. Origin:  bridge(0)    |  vanilla(1)   ← only when HighlightModdedCosmetics=true
+    //   3. Origin:  bridged(0)    |  vanilla(1)   ← driven by IsModdedForAsset (per-cosmetic or global)
     //   4. Sibling: vanilla rarity order (UltraRare → Rare → Uncommon → Common → name-asc)
     //
-    // Bridge acts as a rarity tier above UltraRare
+    // Bridged acts as a rarity tier above UltraRare.
     //
     // Inactive buttons (truly hidden in the UI sense — not the user-hidden
     // concept) always go at the very end, after all visible buttons.
     private static void SortFavoritesInCategory(MenuPageCosmetics page,
                                                 bool hiddenAtEnd = false)
     {
-        bool hasFavs     = BridgeFavoritesManager.HasAnyFavorite();
-        bool hasHidden   = hiddenAtEnd && BridgeFavoritesManager.HasAnyHidden();
-        bool moddedFirst = Plugin.HighlightModdedCosmetics.Value;
+        bool hasFavs   = BridgeFavoritesManager.HasAnyFavorite();
+        bool hasHidden = hiddenAtEnd && BridgeFavoritesManager.HasAnyHidden();
 
         foreach (var section in page.sections)
         {
@@ -291,21 +290,18 @@ internal static class CosmeticsFilterPatch
                 if (btn != null && btn.cosmeticAsset != null && btn.gameObject.activeSelf)
                     FavHideMarkerHelper.UpdateMarker(btn);
 
-            // Nothing to reorder if none of the three conditions apply.
-            if (!hasFavs && !hasHidden && !moddedFirst) continue;
-
             // Clear button = cosmeticAsset == null (first slot of the sectionPrefab).
             var clearButton     = allButtons.FirstOrDefault(b => b != null && b.cosmeticAsset == null);
             var cosmeticButtons = allButtons.Where(b => b != null && b.cosmeticAsset != null).ToArray();
 
             if (cosmeticButtons.Length == 0) continue;
 
-            bool hasFavsHere = hasFavs && cosmeticButtons.Any(b =>
+            bool hasFavsHere   = hasFavs && cosmeticButtons.Any(b =>
                 b.gameObject.activeSelf && BridgeFavoritesManager.IsFavorite(b.cosmeticAsset));
             bool hasHiddenHere = hasHidden && cosmeticButtons.Any(b =>
                 b.gameObject.activeSelf && BridgeFavoritesManager.IsHidden(b.cosmeticAsset));
-            bool hasModdedHere = moddedFirst && cosmeticButtons.Any(b =>
-                b.gameObject.activeSelf && BridgeIds.IsBridgeAsset(b.cosmeticAsset));
+            bool hasModdedHere = cosmeticButtons.Any(b =>
+                b.gameObject.activeSelf && PerCosmeticOverrides.IsModdedForAsset(b.cosmeticAsset));
 
             // Nothing to do in this section — skip the rebuild.
             if (!hasFavsHere && !hasHiddenHere && !hasModdedHere) continue;
@@ -319,7 +315,7 @@ internal static class CosmeticsFilterPatch
                     return 1;
                 })
                 .ThenBy(b => IsUnlocked(b) ? 0 : 1)
-                .ThenBy(b => moddedFirst && BridgeIds.IsBridgeAsset(b.cosmeticAsset) ? 0 : 1)
+                .ThenBy(b => PerCosmeticOverrides.IsModdedForAsset(b.cosmeticAsset) ? 0 : 1)
                 .ThenBy(b => b.transform.GetSiblingIndex())
                 .ToArray();
 

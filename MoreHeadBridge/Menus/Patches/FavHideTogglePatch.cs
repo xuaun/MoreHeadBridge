@@ -21,19 +21,26 @@ using UnityEngine;
 namespace MoreHeadBridge;
 
 [HarmonyPatch(typeof(MenuElementCosmeticButton), "ToggleCosmetic")]
+[HarmonyPriority(Priority.Normal)]
 internal static class FavHideTogglePatch
 {
     private static MethodInfo? _triggerClickAnimations;
     private static bool        _triggerLookupDone;  // true once AccessTools has been called (even if null)
 
+    private static int _lastShiftFrame = int.MinValue;
+
     [HarmonyPrefix]
     private static bool Prefix(MenuElementCosmeticButton __instance)
     {
-        bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-        bool alt  = Input.GetKey(KeyCode.LeftAlt)     || Input.GetKey(KeyCode.RightAlt);
+        bool ctrl     = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        bool alt      = Input.GetKey(KeyCode.LeftAlt)     || Input.GetKey(KeyCode.RightAlt);
+        bool shiftNow = Input.GetKey(KeyCode.LeftShift)   || Input.GetKey(KeyCode.RightShift);
+
+        if (shiftNow) _lastShiftFrame = Time.frameCount;
+        bool shift = shiftNow || (_lastShiftFrame >= 0 && Time.frameCount - _lastShiftFrame <= 3);
 
         // Normal click — let vanilla handle it.
-        if (!ctrl && !alt) return true;
+        if (!ctrl && !alt && !shift) return true;
 
         // Locked cosmetics: let vanilla play its locked feedback.
         if (__instance.menuButton != null && __instance.menuButton.disabled) return true;
@@ -41,6 +48,19 @@ internal static class FavHideTogglePatch
         var asset = __instance.cosmeticAsset;
         // Clear buttons (no asset) cannot be favorited or hidden.
         if (asset == null) return true;
+
+        // Shift+click → open per-cosmetic override popup (bridge cosmetics only).
+        if (shift && !ctrl && !alt)
+        {
+            if (Plugin.EnableCosmeticOverrideUI.Value
+                && Plugin.MenuLibAvailable
+                && BridgeIds.IsBridgeAsset(asset))
+            {
+                CosmeticOverridePopup.Show(asset);
+                return false; // skip equip
+            }
+            return true; // shift on vanilla cosmetic → let vanilla handle
+        }
 
         BridgeFavoritesManager.EnsureLoaded();
 

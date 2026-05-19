@@ -21,7 +21,9 @@ namespace MoreHeadBridge;
 //   CosmeticUnequip loops remove Hat-type items before WorldCosmeticsUnequipPatch
 //   restores them). The Postfix's CosmeticPlayerUpdateLocal with correct final state
 //   then rebuilds pcEquipped properly — removing hat GOs, keeping world GOs.
+
 [HarmonyPatch(typeof(MenuElementCosmeticButton), "ToggleCosmetic")]
+[HarmonyPriority(Priority.High)]
 internal static class WorldCosmeticsClearButtonPatch
 {
     // Read by WorldCosmeticsSetupPatch between calls — must stay static.

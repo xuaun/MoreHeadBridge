@@ -108,15 +108,24 @@ internal static class CosmeticHoverPatch
             }
 
             // StillRunning — wait another frame.
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 
         // Snapshot at the end of this frame (ReadPixels requires WaitForEndOfFrame).
         yield return new WaitForEndOfFrame();
 
-        bool ok = IconCapture.TryCapture(asset);
-        if (!ok)
-            _scheduled.Remove(asset.assetId); // allow retry on next hover
+        bool ok = false;
+        try
+        {
+            ok = IconCapture.TryCapture(asset);
+        }
+        finally
+        {
+            // On failure: remove so the next hover can retry.
+            // On success: keep in _scheduled — HasCache() will gate the next hover anyway.
+            if (!ok)
+                _scheduled.Remove(asset.assetId);
+        }
     }
 }

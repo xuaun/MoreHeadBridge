@@ -76,7 +76,7 @@ internal static class BatchIconGenerator
     {
         _didStartOnce = true;
 
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSecondsRealtime(0.5f);
 
         if (MetaManager.instance == null)
         {
@@ -130,9 +130,17 @@ internal static class BatchIconGenerator
                 MetaManager.instance.CosmeticPreviewSet(_state: true);
                 MetaManager.instance.CosmeticPlayerUpdateLocal(_synced: false);
 
+                WorldCosmeticsSetupPatch.SetAllWorldInstancesActive(false);
+                if (HhhCosmeticLoader.IsWorldAsset(asset))
+                    WorldCosmeticsSetupPatch.SetWorldAssetActive(asset, true);
+
                 SkipEquipAnimationFor(asset);
 
                 yield return null;                    // Update() → EquipAnimation snaps to 1f
+
+                for (int guard = 0; guard < 3 && !IsAnimComplete(asset); guard++)
+                    yield return null;
+
                 yield return new WaitForEndOfFrame(); // frame renders at full scale
 
                 if (MetaManager.instance == null) break;
@@ -143,6 +151,8 @@ internal static class BatchIconGenerator
                 // Disable preview so the avatar reverts before the next iteration.
                 MetaManager.instance.CosmeticPreviewSet(_state: false);
                 MetaManager.instance.CosmeticPlayerUpdateLocal(_synced: false);
+
+                WorldCosmeticsSetupPatch.SetAllWorldInstancesActive(true);
 
                 int total = _progressDone + _progressFailed;
                 if (total % LogEvery == 0)
@@ -175,6 +185,8 @@ internal static class BatchIconGenerator
                 MetaManager.instance.CosmeticPreviewSet(_state: false);
                 MetaManager.instance.CosmeticPlayerUpdateLocal(_synced: false);
             }
+
+            WorldCosmeticsSetupPatch.SetAllWorldInstancesActive(true);
         }
 
         // Only reached on normal completion (interrupted == false).
@@ -200,6 +212,21 @@ internal static class BatchIconGenerator
             if (cosmetic != null && cosmetic.cosmeticAsset == asset)
                 _iconCreationAvatarField.SetValue(cosmetic, true);
         }
+    }
+
+    private static FieldInfo? _equipLerpField;
+    private static bool IsAnimComplete(CosmeticAsset asset)
+    {
+        _equipLerpField ??= AccessTools.Field(typeof(Cosmetic), "equipLerp");
+        if (_equipLerpField == null) return true;
+
+        foreach (var c in UnityEngine.Object.FindObjectsOfType<Cosmetic>())
+        {
+            if (c != null && c.cosmeticAsset == asset &&
+                (float)(_equipLerpField.GetValue(c) ?? 1f) < 1f)
+                return false;
+        }
+        return true;
     }
 }
 

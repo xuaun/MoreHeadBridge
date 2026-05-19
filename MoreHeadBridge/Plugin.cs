@@ -14,51 +14,42 @@ public enum SearchBarPosition { Bottom, Top }
 [BepInDependency("REPOLib")]
 [BepInDependency("space.customizing.console", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("Mhz.REPOMoreHead", BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency("nickklmao.menulib", BepInDependency.DependencyFlags.SoftDependency)]
 public class Plugin : BaseUnityPlugin
 {
     public static Plugin Instance { get; private set; } = null!;
     public new static ManualLogSource Logger { get; private set; } = null!;
 
-    public static ConfigEntry<bool> UnlockAll { get; private set; } = null!;
-
-    public static ConfigEntry<bool> ResetUnlocks { get; private set; } = null!;
-
-    // [MenuCapture] — use cosmetic texture as icon overlay on the placeholder.
-    public static ConfigEntry<bool> UseTextureAsPlaceholder { get; private set; } = null!;
-
-    // [MenuCapture] — reactive hover capture.
-    public static ConfigEntry<bool> AutoCaptureIcons { get; private set; } = null!;
-
-    // [MenuCapture] — one-shot batch.
-    public static ConfigEntry<bool> GenerateAllIcons { get; private set; } = null!;
-
-    // [MenuCapture] Cache deletion.
-    public static ConfigEntry<bool> DeleteIconCache { get; private set; } = null!;
-    public static ConfigEntry<string> DeleteIconsMatching { get; private set; } = null!;
-
-    public static ConfigEntry<bool> HideMoreHeadButton { get; private set; } = null!;
-
-
-    // When true, multiple cosmetics of the same type can be equipped simultaneously.
-    public static ConfigEntry<bool> AllowMultipleCosmetics { get; private set; } = null!;
-
-    // When true, bridge cosmetics display an orange border in the cosmetics menu
-    // to distinguish them from vanilla cosmetics at a glance.
-    // The actual rarity (sort position) is still controlled by DefaultRarity.
-    public static ConfigEntry<bool> HighlightModdedCosmetics { get; private set; } = null!;
-
-    // Rarity assigned to bridge cosmetics in the vanilla cosmetics shop.
-    // Common is the default — Uncommon/Rare/UltraRare make them appear in higher tiers.
-    public static ConfigEntry<SemiFunc.Rarity> DefaultRarity { get; private set; } = null!;
-
-    // Comma-separated list of subfolder names (under BepInEx/plugins) to scan for .hhh files.
-    // Empty = scan ALL plugin folders (default). Use this to select only wanted folders.
-    public static ConfigEntry<string> SpecificFolders { get; private set; } = null!;
-
-    // Search bar placement: Bottom or Top (default).
+    // ── [General] ────────────────────────────────────────────────────────────
+    public static ConfigEntry<bool>            UnlockAll            { get; private set; } = null!;
+    public static ConfigEntry<bool>            AllowMultipleCosmetics { get; private set; } = null!;
+    public static ConfigEntry<bool>            HideMoreHeadButton   { get; private set; } = null!;
+    public static ConfigEntry<string>          SpecificFolders      { get; private set; } = null!;
     public static ConfigEntry<SearchBarPosition> SearchFieldPosition { get; private set; } = null!;
 
-    public static ConfigEntry<bool> ShowBridgeDebugLogs { get; private set; } = null!;
+    // ── [Appearance] ─────────────────────────────────────────────────────────
+    public static ConfigEntry<bool>            HighlightModdedCosmetics { get; private set; } = null!;
+    public static ConfigEntry<SemiFunc.Rarity> DefaultRarity        { get; private set; } = null!;
+
+    // ── [Icons] ──────────────────────────────────────────────────────────────
+    public static ConfigEntry<bool>            UseTextureAsPlaceholder { get; private set; } = null!;
+    public static ConfigEntry<bool>            AutoCaptureIcons     { get; private set; } = null!;
+    public static ConfigEntry<bool>            GenerateAllIcons     { get; private set; } = null!;
+
+    // ── [CosmeticCustomizer] ─────────────────────────────────────────────────
+    public static ConfigEntry<bool>            EnableCosmeticOverrideUI { get; private set; } = null!;
+
+    // ── [Reset] ──────────────────────────────────────────────────────────────
+    public static ConfigEntry<bool>            ResetUnlocks         { get; private set; } = null!;
+    public static ConfigEntry<bool>            ResetCosmeticCustomizer { get; private set; } = null!;
+    public static ConfigEntry<bool>            DeleteIconCache      { get; private set; } = null!;
+    public static ConfigEntry<string>          DeleteIconsMatching  { get; private set; } = null!;
+
+    // ── [Debug] ──────────────────────────────────────────────────────────────
+    public static ConfigEntry<bool>            ShowBridgeDebugLogs  { get; private set; } = null!;
+
+    // True if MenuLib was detected in the loaded plugin chain. Cached once in Awake.
+    public static bool MenuLibAvailable { get; private set; }
 
     private readonly Harmony _harmony = new(MyPluginInfo.PLUGIN_GUID);
 
@@ -67,6 +58,7 @@ public class Plugin : BaseUnityPlugin
         Instance = this;
         Logger = base.Logger;
 
+        // ── [General] ────────────────────────────────────────────────────────
         UnlockAll = Config.Bind(
             section: "General",
             key: "UnlockAll",
@@ -103,23 +95,12 @@ public class Plugin : BaseUnityPlugin
             description: "If true, removes the MoreHead button from all menus so you can use only the vanilla cosmetics UI. Requires restart."
         );
 
-        HighlightModdedCosmetics = Config.Bind(
+        SpecificFolders = Config.Bind(
             section: "General",
-            key: "HighlightModdedCosmetics",
-            defaultValue: true,
-            description: "When TRUE (default), bridge cosmetics show an orange border in the cosmetics menu,\n" +
-                         "making them visually distinct from vanilla cosmetics at a glance.\n" +
-                         "The sort position is unaffected — it is still controlled by DefaultRarity.\n" +
-                         "When FALSE, bridge cosmetics use the standard rarity border color like any vanilla cosmetic."
-        );
-
-        DefaultRarity = Config.Bind(
-            section: "General",
-            key: "DefaultRarity",
-            defaultValue: SemiFunc.Rarity.Common,
-            description: "Rarity tier assigned to bridge cosmetics in the vanilla shop. Values: Common, Uncommon, Rare, UltraRare.\n" +
-                         "Controls sort position in the menu (UltraRare appears first, Common last).\n" +
-                         "The visual border color is controlled separately by HighlightModdedCosmetics."
+            key: "SpecificFolders",
+            defaultValue: "",
+            description: "Comma-separated subfolder names under BepInEx/plugins to scan for .hhh files. Empty = scan all. " +
+                          "Example: 'Some-MoreHeadPack,Another-CosmeticsPack'. Matching is case-insensitive and uses path contains."
         );
 
         SearchFieldPosition = Config.Bind(
@@ -131,15 +112,31 @@ public class Plugin : BaseUnityPlugin
                          "Top    = above the category strip (default)."
         );
 
-        SpecificFolders = Config.Bind(
-            section: "General",
-            key: "SpecificFolders",
-            defaultValue: "",
-            description: "Comma-separated subfolder names under BepInEx/plugins to scan for .hhh files. Empty = scan all. " +
-                          "Example: 'Some-MoreHeadPack,Another-CosmeticsPack'. Matching is case-insensitive and uses path contains."
+        // ── [Appearance] ─────────────────────────────────────────────────────
+        HighlightModdedCosmetics = Config.Bind(
+            section: "Appearance",
+            key: "HighlightModdedCosmetics",
+            defaultValue: true,
+            description: "When TRUE (default), bridge cosmetics show an orange border in the cosmetics menu,\n" +
+                         "making them visually distinct from vanilla cosmetics at a glance.\n" +
+                         "The sort position is unaffected — it is still controlled by DefaultRarity.\n" +
+                         "When FALSE, bridge cosmetics use the standard rarity border color like any vanilla cosmetic.\n" +
+                         "\n" +
+                         "Per-cosmetic overrides set via the CosmeticCustomizer popup take priority over this setting."
         );
 
-        // [MenuCapture] BEGIN — icon-from-menu config.
+        DefaultRarity = Config.Bind(
+            section: "Appearance",
+            key: "DefaultRarity",
+            defaultValue: SemiFunc.Rarity.Common,
+            description: "Rarity tier assigned to bridge cosmetics in the vanilla shop. Values: Common, Uncommon, Rare, UltraRare.\n" +
+                         "Controls sort position in the menu (UltraRare appears first, Common last).\n" +
+                         "The visual border color is controlled separately by HighlightModdedCosmetics.\n" +
+                         "\n" +
+                         "Per-cosmetic rarity overrides set via the CosmeticCustomizer popup take priority over this setting."
+        );
+
+        // ── [Icons] ──────────────────────────────────────────────────────────
         UseTextureAsPlaceholder = Config.Bind(
             section: "Icons",
             key: "UseTextureAsPlaceholder",
@@ -189,27 +186,19 @@ public class Plugin : BaseUnityPlugin
                           "Requires AutoCaptureIcons logic — keeps working even if AutoCaptureIcons=false."
         );
 
-        DeleteIconCache = Config.Bind(
-            section: "Icons",
-            key: "DeleteIconCache",
+        // ── [CosmeticCustomizer] ─────────────────────────────────────────────
+        EnableCosmeticOverrideUI = Config.Bind(
+            section: "CosmeticCustomizer",
+            key: "EnableCosmeticOverrideUI",
             defaultValue: false,
-            description: "ONE-SHOT trigger. When TRUE on launch, delete cached bridge icon PNGs from:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
-                          "Use DeleteIconsMatching to filter which ones to delete.\n" +
-                          "Auto-resets to FALSE after running."
+            description: "When TRUE, Shift+click on any bridge cosmetic in the menu opens a popup\n" +
+                         "that lets you override its rarity tier and category (Hat, BodyTop, World, …)\n" +
+                         "individually. Overrides are saved and applied on every launch.\n" +
+                         "\n" +
+                         "Requires MenuLib to be installed."
         );
 
-        DeleteIconsMatching = Config.Bind(
-            section: "Icons",
-            key: "DeleteIconsMatching",
-            defaultValue: "",
-            description: "Optional comma-separated filter for DeleteIconCache. Case-insensitive\n" +
-                          "substring match against the icon filename (which is the cosmetic's internal name).\n" +
-                          "Empty = delete ALL bridge icons.\n" +
-                          "Example: 'PirateHat,Waluigi' deletes only icons whose name contains either."
-        );
-        // [MenuCapture] END
-
+        // ── [Reset] ──────────────────────────────────────────────────────────
         ResetUnlocks = Config.Bind(
             section: "Reset",
             key: "ResetUnlocks",
@@ -231,6 +220,41 @@ public class Plugin : BaseUnityPlugin
                           "This does NOT delete the .hhh files — only the unlock state."
         );
 
+        ResetCosmeticCustomizer = Config.Bind(
+            section: "Reset",
+            key: "ResetCosmeticCustomizer",
+            defaultValue: false,
+            description: "ONE-SHOT trigger. When TRUE on the next launch:\n" +
+                          "  1. Clears ALL per-cosmetic overrides (rarity, category, modded flag)\n" +
+                          "     set via the Cosmetic Customizer popup\n" +
+                          "  2. Deletes MoreHeadBridge_CosmeticOverrides.json from BepInEx/config\n" +
+                          "  3. Auto-flips this flag back to FALSE\n" +
+                          "\n" +
+                          "Bridge cosmetics will revert to the global DefaultRarity and their\n" +
+                          "original .hhh file category on the same launch."
+        );
+
+        DeleteIconCache = Config.Bind(
+            section: "Reset",
+            key: "DeleteIconCache",
+            defaultValue: false,
+            description: "ONE-SHOT trigger. When TRUE on launch, delete cached bridge icon PNGs from:\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
+                          "Use DeleteIconsMatching to filter which ones to delete.\n" +
+                          "Auto-resets to FALSE after running."
+        );
+
+        DeleteIconsMatching = Config.Bind(
+            section: "Reset",
+            key: "DeleteIconsMatching",
+            defaultValue: "",
+            description: "Optional comma-separated filter for DeleteIconCache. Case-insensitive\n" +
+                          "substring match against the icon filename (which is the cosmetic's internal name).\n" +
+                          "Empty = delete ALL bridge icons.\n" +
+                          "Example: 'PirateHat,Waluigi' deletes only icons whose name contains either."
+        );
+
+        // ── [Debug] ──────────────────────────────────────────────────────────
         ShowBridgeDebugLogs = Config.Bind(
             section: "Debug",
             key: "ShowBridgeDebugLogs",
@@ -239,7 +263,21 @@ public class Plugin : BaseUnityPlugin
                           "Use this to diagnose bridge-only issues (will spam logs if the base game is noisy)."
         );
 
+        MenuLibAvailable = BepInEx.Bootstrap.Chainloader.PluginInfos
+                                  .ContainsKey("nickklmao.menulib");
+        if (MenuLibAvailable)
+            Logger.LogDebug("MenuLib detected — CosmeticCustomizer UI enabled.");
+
         PrintBanner();
+        PerCosmeticOverrides.Load();     // must run before LoadAll so overrides apply at registration
+
+        if (ResetCosmeticCustomizer.Value)
+        {
+            PerCosmeticOverrides.ResetAll();
+            ResetCosmeticCustomizer.Value = false;
+            Logger.LogInfo("CosmeticCustomizer: all per-cosmetic overrides cleared.");
+        }
+
         HhhCosmeticLoader.LoadAll();
         PerCosmeticColors.Load();
         IconCacheCleaner.Run();          // honor DeleteIconCache flag if set
@@ -249,7 +287,7 @@ public class Plugin : BaseUnityPlugin
             TryHideMoreHeadUI();
 
         PartShrinkerSuppressor.TryApply(_harmony);
-        ModdedRpcRetrigger.TryApply(_harmony);
+        SetupCosmeticsModdedRpcPatch.TryApply(_harmony);
     }
 
     private void TryHideMoreHeadUI()

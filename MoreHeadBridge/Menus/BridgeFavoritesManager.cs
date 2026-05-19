@@ -117,12 +117,17 @@ internal static class BridgeFavoritesManager
             Formatting.Indented);
 
         // Chain the write onto the previous one so writes are strictly sequential
-        // and File.WriteAllText is never racing itself on the same file.
+        // and the file is never raced by two threads simultaneously.
         _lastWrite = _lastWrite.ContinueWith(_ =>
         {
             try
             {
-                File.WriteAllText(SavePath, json);
+                string tmpPath = SavePath + ".tmp";
+                File.WriteAllText(tmpPath, json, System.Text.Encoding.UTF8);
+                if (File.Exists(SavePath))
+                    File.Replace(tmpPath, SavePath, null);
+                else
+                    File.Move(tmpPath, SavePath);
             }
             catch (Exception ex)
             {
