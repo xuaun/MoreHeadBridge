@@ -15,10 +15,8 @@ internal static class CosmeticsBulkActionRefreshPatch
     static IEnumerable<MethodBase> TargetMethods()
     {
         yield return AccessTools.Method(typeof(MenuPageCosmetics), "RandomizeAllButton");
-        yield return AccessTools.Method(typeof(MenuPageCosmetics), "RandomizeBodyButton");
         yield return AccessTools.Method(typeof(MenuPageCosmetics), "RandomizeCosmeticsButton");
         yield return AccessTools.Method(typeof(MenuPageCosmetics), "ResetAllButton");
-        yield return AccessTools.Method(typeof(MenuPageCosmetics), "ResetBodyButton");
         yield return AccessTools.Method(typeof(MenuPageCosmetics), "ResetCosmeticsButton");
     }
 

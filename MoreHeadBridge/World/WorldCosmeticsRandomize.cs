@@ -59,10 +59,11 @@ internal static class WorldCosmeticsRandomize
             }
         }
 
-        // Always refresh SELECTED/SEARCH so the newly-rolled result appears immediately,
-        // regardless of whether world assets are present.
+        // Refresh SELECTED so the newly-rolled result appears immediately.
         var page = CosmeticsMenuState.ActivePage;
-        if (page != null && CosmeticsMenuState.IsVirtual(page.selectedCategory))
+        if (page != null
+            && page.selectedTab == MenuPageCosmetics.CosmeticPageTab.Cosmetics
+            && CosmeticsMenuState.IsSelected(page.selectedCategory))
             page.RefreshScrollContent();
     }
 
