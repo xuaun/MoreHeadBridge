@@ -21,6 +21,7 @@ internal static class CosmeticsMenuStartPatch
 
         try
         {
+            HhhCosmeticLoader.ReapplyDefaultRarityToAll();
             CosmeticsMenuState.SetActivePage(__instance);
             CosmeticsMenuState.EnsureCategories();
 

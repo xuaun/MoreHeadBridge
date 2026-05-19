@@ -261,6 +261,21 @@ internal static class HhhCosmeticLoader
     internal static bool IsWorldAsset(CosmeticAsset? asset)
         => asset != null && BridgeIds.IsBridgeAsset(asset) && WorldAssetIds.Contains(asset.assetId);
 
+    /// Re-applies DefaultRarity to every bridge cosmetic that has no per-cosmetic rarity
+    /// override. Called on each menu open so config changes take effect without restart.
+    internal static void ReapplyDefaultRarityToAll()
+    {
+        if (MetaManager.instance == null) return;
+        var rarity = Plugin.DefaultRarity.Value;
+        foreach (var asset in MetaManager.instance.cosmeticAssets)
+        {
+            if (asset == null || !BridgeIds.IsBridgeAsset(asset)) continue;
+            // Skip assets with an explicit per-cosmetic rarity override.
+            if (PerCosmeticOverrides.TryGet(asset.assetId, out var data) && data.Rarity != null) continue;
+            asset.rarity = rarity;
+        }
+    }
+
     /// Restores a bridge cosmetic's rarity and type to the loader defaults
     internal static void ReapplyDefaults(CosmeticAsset asset)
     {
