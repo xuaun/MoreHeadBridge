@@ -65,14 +65,43 @@ internal static class HhhCosmeticLoader
         string filterRaw = Plugin.SpecificFolders.Value ?? "";
         if (!string.IsNullOrWhiteSpace(filterRaw))
         {
+            var invalidChars = Path.GetInvalidPathChars();
+
             var allowed = filterRaw.Split(',')
                 .Select(s => s.Trim())
                 .Where(s => s.Length > 0)
+                .Select(s =>
+                {
+                    string clean = new string(s.Where(c => !invalidChars.Contains(c)).ToArray());
+                    if (clean != s)
+                        Plugin.Logger.LogWarning($"SpecificFolders: '{s}' contained invalid path characters — changed to '{clean}'.");
+                    return clean;
+                })
+                .Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            int before = files.Length;
-            files = files.Where(f => allowed.Any(a => f.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0)).ToArray();
-            LogInfo($"SpecificFolders filter active ({string.Join(", ", allowed)}) — kept {files.Length}/{before} files.");
+            // Determine which of the requested folders actually matched any file.
+            var matched  = allowed.Where(a => files.Any(f => f.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0)).ToArray();
+            var missing  = allowed.Except(matched, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            if (matched.Length == 0)
+            {
+                // None of the specified folders found — fall back to loading everything.
+                Plugin.Logger.LogWarning(
+                    $"SpecificFolders: none of the specified folders were found " +
+                    $"({string.Join(", ", allowed)}). Loading all .hhh files instead.");
+            }
+            else
+            {
+                if (missing.Length > 0)
+                    Plugin.Logger.LogWarning(
+                        $"SpecificFolders: folder(s) not found and skipped: {string.Join(", ", missing)}.");
+
+                int before = files.Length;
+                files = files.Where(f => matched.Any(a => f.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0)).ToArray();
+                LogInfo($"SpecificFolders: loaded from {string.Join(", ", matched)} — kept {files.Length}/{before} files.");
+            }
         }
 
         LogInfo($"Found {files.Length} .hhh file(s). Translating cosmetics from MoreHead to Vanilla REPO...");
