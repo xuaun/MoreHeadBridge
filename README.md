@@ -1,6 +1,6 @@
 # MoreHead Bridge
 
-Translates `.hhh` cosmetics (from [MoreHead](https://thunderstore.io/c/repo/p/Mhz/REPOMoreHead/)) into the vanilla R.E.P.O. cosmetics system, so they appear alongside your vanilla cosmetics in the game.
+Translates `.hhh` cosmetics (from [MoreHead](https://thunderstore.io/c/repo/p/YMC_MHZ/MoreHead/)) into the vanilla R.E.P.O. cosmetics system, so they appear alongside your vanilla cosmetics in the game.
 
 ---
 
@@ -11,8 +11,10 @@ Translates `.hhh` cosmetics (from [MoreHead](https://thunderstore.io/c/repo/p/Mh
 - Auto-unlocks all bridge cosmetics on game start (configurable)
 - Supports every cosmetic type including **World** cosmetics
 - Favorite your preferred cosmetics and hide the ones you're not interested in - and easily find them in their own tabs in the cosmetics menu
+- Equip multiple cosmetics of the same type, each one can have its own individual color
 - Search cosmetics or view all the equipped cosmetics
 - Hover over a cosmetic item to see its name
+- Automatically removes physics components and fixes animation looping on bridge cosmetics at load time (configurable)
 - Optional: hide the MoreHead button if you prefer to use only the vanilla UI
 - Optional: change the rarity or category per-cosmetic
 
@@ -96,6 +98,7 @@ Config file: `BepInEx/config/Xuaun.MoreHeadBridge.cfg`
 |---|---|---|
 | **UnlockAll** | `true` | Auto-unlock all bridge cosmetics on every game load. Set to `false` to require earning them like vanilla cosmetics. |
 | **AllowMultipleCosmetics** | `true` | Allow equipping multiple cosmetics of the same type simultaneously (e.g. two hats). |
+| **EnableMenuEnhancements** | `true` | Enables all extended cosmetics menu features: virtual tabs (SEARCH, SELECTED, FAV, HIDE), Ctrl+click to favorite, Alt+click to hide, live search bar, and cosmetic name tooltip on hover. Set to `false` to use the unmodified vanilla cosmetics menu. |
 | **HideMoreHeadButton** | `false` | Remove the MoreHead button from all menus. Requires restart. |
 | **SpecificFolders** | *(empty)* | Comma-separated subfolder names under `BepInEx/plugins` to scan for `.hhh` files. Empty = scan all. Example: `Some-MoreHeadPack,Another-Pack`. |
 | **SearchFieldPosition** | `Top` | Where the search bar appears in the cosmetics menu. `Top` = above the category strip. `Bottom` = at the bottom of the Semibot. |
@@ -120,6 +123,12 @@ Config file: `BepInEx/config/Xuaun.MoreHeadBridge.cfg`
 | Option | Default | Description |
 |---|---|---|
 | **EnableCosmeticOverrideUI** | `false` | Enable the Shift + click popup to override rarity, category, and modded flag per cosmetic. Requires MenuLib. |
+
+### Compatibility
+
+| Option | Default | Description |
+|---|---|---|
+| **FixBridgedCosmetics** | `true` | At load time, automatically removes `Collider` and `Rigidbody` components from bridge cosmetics (prevents the rotation bug in the preview menu) and forces animation looping. Applied directly to the prefab so every instance — including MoreHead's own rendering — inherits the fix. Set to `false` only if a specific cosmetic breaks due to these changes. |
 
 ### Reset
 
@@ -163,6 +172,7 @@ If you have [BepInEx Console Extensions (BCE)](https://thunderstore.io/c/dyson-s
 ## Credits
 
 - **Xuaun** — MoreHead Bridge
-- **Masaicker & YurisCat** — [MoreHead](https://thunderstore.io/c/repo/p/Mhz/REPOMoreHead/) (original mod)
+- **Masaicker & YurisCat** — [MoreHead](https://thunderstore.io/c/repo/p/YMC_MHZ/MoreHead/) (original mod)
+- **Maygik** - [MoreHeadUtilities](https://thunderstore.io/c/repo/p/Maygik/MoreHeadUtilities/)
 - **Zehs** — [REPOLib](https://thunderstore.io/c/repo/p/Zehs/REPOLib/)
 - **innominata** — [BepInEx Console Extensions](https://thunderstore.io/c/dyson-sphere-program/p/innominata/BepInEx_Console_Extensions/) (optional mod)

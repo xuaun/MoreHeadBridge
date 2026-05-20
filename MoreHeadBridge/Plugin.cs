@@ -21,23 +21,27 @@ public class Plugin : BaseUnityPlugin
     public new static ManualLogSource Logger { get; private set; } = null!;
 
     // ── [General] ────────────────────────────────────────────────────────────
-    public static ConfigEntry<bool>            UnlockAll            { get; private set; } = null!;
+    public static ConfigEntry<bool>            UnlockAll              { get; private set; } = null!;
     public static ConfigEntry<bool>            AllowMultipleCosmetics { get; private set; } = null!;
-    public static ConfigEntry<bool>            HideMoreHeadButton   { get; private set; } = null!;
-    public static ConfigEntry<string>          SpecificFolders      { get; private set; } = null!;
-    public static ConfigEntry<SearchBarPosition> SearchFieldPosition { get; private set; } = null!;
+    public static ConfigEntry<bool>            EnableMenuEnhancements { get; private set; } = null!;
+    public static ConfigEntry<bool>            HideMoreHeadButton     { get; private set; } = null!;
+    public static ConfigEntry<string>          SpecificFolders        { get; private set; } = null!;
+    public static ConfigEntry<SearchBarPosition> SearchFieldPosition  { get; private set; } = null!;
 
     // ── [Appearance] ─────────────────────────────────────────────────────────
     public static ConfigEntry<bool>            HighlightModdedCosmetics { get; private set; } = null!;
-    public static ConfigEntry<SemiFunc.Rarity> DefaultRarity        { get; private set; } = null!;
+    public static ConfigEntry<SemiFunc.Rarity> DefaultRarity            { get; private set; } = null!;
 
     // ── [Icons] ──────────────────────────────────────────────────────────────
     public static ConfigEntry<bool>            UseTextureAsPlaceholder { get; private set; } = null!;
-    public static ConfigEntry<bool>            AutoCaptureIcons     { get; private set; } = null!;
-    public static ConfigEntry<bool>            GenerateAllIcons     { get; private set; } = null!;
+    public static ConfigEntry<bool>            AutoCaptureIcons        { get; private set; } = null!;
+    public static ConfigEntry<bool>            GenerateAllIcons        { get; private set; } = null!;
 
     // ── [CosmeticCustomizer] ─────────────────────────────────────────────────
     public static ConfigEntry<bool>            EnableCosmeticOverrideUI { get; private set; } = null!;
+
+    // ── [Compatibility] ──────────────────────────────────────────────────────
+    public static ConfigEntry<bool>            FixBridgedCosmetics    { get; private set; } = null!;
 
     // ── [Reset] ──────────────────────────────────────────────────────────────
     public static ConfigEntry<bool>            ResetUnlocks         { get; private set; } = null!;
@@ -86,6 +90,17 @@ public class Plugin : BaseUnityPlugin
                          "Applies to: Hat, HeadBottom, FaceTop, FaceBottom, Eyewear, Ears,\n" +
                          "           BodyTop, BodyBottom, ArmRight, ArmLeft,\n" +
                          "           LegRight, FootRight, LegLeft, FootLeft, World."
+        );
+
+        EnableMenuEnhancements = Config.Bind(
+            section: "General",
+            key: "EnableMenuEnhancements",
+            defaultValue: true,
+            description: "When TRUE (default), enables the extended cosmetics menu:\n" +
+                         "  • Virtual tabs: SEARCH, SELECTED, FAV, HIDE\n" +
+                         "  • Ctrl+click to favorite, Alt+click to hide cosmetics\n" +
+                         "  • Live search bar and cosmetic name hover tooltip\n" +
+                         "Set to FALSE if you prefer the unmodified vanilla cosmetics menu."
         );
 
         HideMoreHeadButton = Config.Bind(
@@ -198,6 +213,21 @@ public class Plugin : BaseUnityPlugin
                          "Requires MenuLib to be installed."
         );
 
+        // ── [Compatibility] ──────────────────────────────────────────────────
+        FixBridgedCosmetics = Config.Bind(
+            section: "Compatibility",
+            key: "FixBridgedCosmetics",
+            defaultValue: true,
+            description: "When TRUE (default), automatically fixes common asset issues on bridge (.hhh)\n" +
+                         "cosmetics at load time (applied directly to the prefab, so every instance\n" +
+                         "— including MoreHead's own rendering — inherits the fix):\n" +
+                         "  • Removes Collider and Rigidbody components (prevents physics interference\n" +
+                         "    and the character-rotation bug in the cosmetics preview menu)\n" +
+                         "  • Forces Animation and Animator clips to loop (prevents one-shot animations)\n" +
+                         "Takes effect on the next game launch. Set to FALSE only if a specific\n" +
+                         "cosmetic breaks due to these fixes."
+        );
+
         // ── [Reset] ──────────────────────────────────────────────────────────
         ResetUnlocks = Config.Bind(
             section: "Reset",
@@ -283,11 +313,45 @@ public class Plugin : BaseUnityPlugin
         IconCacheCleaner.Run();          // honor DeleteIconCache flag if set
         _harmony.PatchAll();
 
+        AllowMultipleCosmetics.SettingChanged += OnAllowMultipleCosmeticsChanged;
+
         if (HideMoreHeadButton.Value)
             TryHideMoreHeadUI();
 
         PartShrinkerSuppressor.TryApply(_harmony);
         SetupCosmeticsModdedRpcPatch.TryApply(_harmony);
+    }
+
+    // Called when AllowMultipleCosmetics is toggled at runtime.
+    // When turning OFF: trims cosmeticEquipped to at most one per type so remote
+    // players receive the correct single-equip state in the next RPC.
+    // When turning ON: no trimming needed — just re-sync so remote sees the current list.
+    private static void OnAllowMultipleCosmeticsChanged(object sender, System.EventArgs e)
+    {
+        var meta = MetaManager.instance;
+        if (meta == null) return;
+
+        if (!AllowMultipleCosmetics.Value)
+        {
+            // Keep only the first equipped cosmetic of each type; remove the extras.
+            var seen     = new System.Collections.Generic.HashSet<SemiFunc.CosmeticType>();
+            var toRemove = new System.Collections.Generic.List<int>();
+
+            foreach (int idx in meta.cosmeticEquipped)
+            {
+                if (idx < 0 || idx >= meta.cosmeticAssets.Count) continue;
+                var asset = meta.cosmeticAssets[idx];
+                if (asset == null) continue;
+                if (!seen.Add(asset.type))
+                    toRemove.Add(idx);
+            }
+
+            foreach (int idx in toRemove)
+                meta.cosmeticEquipped.Remove(idx);
+        }
+
+        // Re-sync cosmetics to remote players (no-op in singleplayer).
+        meta.CosmeticPlayerUpdateLocal(_synced: SemiFunc.IsMultiplayer());
     }
 
     private void TryHideMoreHeadUI()

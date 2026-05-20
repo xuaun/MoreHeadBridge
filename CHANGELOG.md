@@ -1,3 +1,36 @@
+# v2.2.0
+
+### Compatibility
+
+- New option `FixBridgedCosmetics` (default: `true`, in the `[Compatibility]` config section) — automatically fixes common asset issues on bridge cosmetics **at load time**, applied directly to the prefab so every instance inherits the fix:
+  - Removes `Collider` and `Rigidbody` components — eliminates the character-rotation bug in the cosmetics preview menu caused by cosmetics with physics components
+  - Forces `Animation` clips to loop — cosmetics that only played once now loop correctly
+  - Adds software-loop support for `Animator`-driven clips whose controller states are not marked as Loop Time
+- At load time the mod now detects whether a bridge cosmetic uses `PartShrinker` (body-part hiding from [MoreHeadUtilities](https://thunderstore.io/c/repo/p/Maygik/MoreHeadUtilities/)) and logs whether it is active or whether MoreHeadUtilities needs to be installed
+
+### Dependencies
+
+- MoreHead is no longer a required dependency — MoreHead Bridge works standalone and treats MoreHead as optional
+  - Someone asked me if I could remove this hard dependency on MoreHead - so I did it in this version
+  - But you still need the `.hhh` cosmetic files to load in-game - so I recommend keeping the mods to use them
+
+---
+
+# v2.1.0
+
+### Features / Fixes
+- Individual color sync (_working correctly_) in multiplayer — other players now see the correct individual colors you have set per cosmetic
+- Updated the RepoLIB version dependency (4.0.3 -> 4.0.4)
+
+### Bug fixes
+- Clothing not appearing after the first Confirm in multiplayer
+- Reset All leaving the old outfit all white on the remote instead of clearing correctly
+- Virtual tabs (FAV, HIDE, SEARCH, SELECTED) displaying "new" badges incorrectly
+- Painting a cosmetic individually sometimes had strange behavior
+- Loading multiple painted cosmetics from a saved outfit in the preset menu now correctly colors the cosmetics
+
+---
+
 # v2.0.0
 
 ### World Cosmetics

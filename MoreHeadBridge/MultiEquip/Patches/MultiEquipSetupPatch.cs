@@ -51,7 +51,10 @@ internal static class MultiEquipSetupPatch
 
         __state = new PatchState();
 
-        IEnumerable<int> source = MetaManager.instance.cosmeticPreviewEnabled
+        // Only use the local player's preview list when this IS the local menu avatar.
+        bool usePreview = MetaManager.instance.cosmeticPreviewEnabled
+            && __instance.playerAvatarVisuals?.isMenuAvatar == true;
+        IEnumerable<int> source = usePreview
             ? (IEnumerable<int>)MetaManager.instance.cosmeticEquippedPreview
             : __0;
 

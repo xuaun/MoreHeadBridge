@@ -50,19 +50,8 @@ internal static class SetupCosmeticsModdedRpcPatch
         if (__instance.photonView == null || __instance.photonView.IsMine) return;
 
         var cosmeticEquipped = _cosmeticEquippedField?.GetValue(__instance) as List<string>;
-        if (cosmeticEquipped == null || cosmeticEquipped.Count == 0) return;
+        if (cosmeticEquipped == null) return;
 
-        // Only act when bridge cosmetics are present — don't interfere with vanilla-only players.
-        bool hasBridge = false;
-        foreach (var id in cosmeticEquipped)
-        {
-            if (BridgeIds.IsBridgeAsset(id)) { hasBridge = true; break; }
-        }
-        if (!hasBridge) return;
-
-        // Pass an empty array. SetupCosmeticsLogicPatch (REPOLib) will replace it with the
-        // full index list derived from cosmeticEquipped (which now includes vanilla + bridge
-        // assetIds), then the original SetupCosmeticsLogic applies them all at once.
         var playerCosmetics = __instance.GetComponent<PlayerCosmetics>();
         playerCosmetics?.SetupCosmeticsLogic(Array.Empty<int>(), false);
     }

@@ -1,11 +1,10 @@
 {
     "name": "MoreHeadBridge",
-    "version_number": "2.0.0",
+    "version_number": "2.2.0",
     "website_url": "https://github.com/xuaun/MoreHeadBridge",
     "description": "Translates .hhh cosmetics (MoreHead) into the vanilla R.E.P.O. cosmetics system, so they appear alongside vanilla cosmetics in the game.",
     "dependencies": [
         "BepInEx-BepInExPack-5.4.2305",
-        "Zehs-REPOLib-4.0.3",
-        "YMC_MHZ-MoreHead-1.4.5"
+        "Zehs-REPOLib-4.0.4"
     ]
 }

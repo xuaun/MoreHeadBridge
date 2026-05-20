@@ -6,9 +6,9 @@
         <LangVersion>latest</LangVersion>
 
         <AssemblyName>MoreHeadBridge</AssemblyName>
-        <AssemblyVersion>1.0.0.0</AssemblyVersion>
-        <FileVersion>1.0.0.0</FileVersion>
-        <Version>1.0.0</Version>
+        <AssemblyVersion>2.2.0.0</AssemblyVersion>
+        <FileVersion>2.2.0.0</FileVersion>
+        <Version>2.2.0</Version>
         <Authors>Xuaun</Authors>
         <Product>MoreHeadBridge</Product>
         <Description>Registers MoreHead .hhh cosmetics into the vanilla REPO cosmetics system via REPOLib.</Description>

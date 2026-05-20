@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace MoreHeadBridge;
@@ -39,6 +40,8 @@ internal static class HhhCosmeticLoader
     // Tracks names already registered to handle duplicates across mods (like MoreHead does)
     private static readonly HashSet<string> _usedPrefabIds = [];
     private static readonly HashSet<string> _usedInternalNames = [];
+
+    private static bool _moreHeadFixDone;
 
     // Original type per assetId (derived from the .hhh filename tag at load time).
     private static readonly Dictionary<string, OverrideCosmeticType> _originalTypes = new();
@@ -156,6 +159,10 @@ internal static class HhhCosmeticLoader
             Plugin.Logger.LogError($"No GameObject in bundle: {fileName}");
             return false;
         }
+
+        // Fix physics and animation on the prefab itself so every instance
+        if (Plugin.FixBridgedCosmetics.Value)
+            FixPrefab(prefab, fileName);
 
         // Deduplicate prefab network ID (same as MoreHead's EnsureUniqueName logic)
         string basePrefabName = prefab.name;
@@ -302,6 +309,151 @@ internal static class HhhCosmeticLoader
             // Skip assets with an explicit per-cosmetic rarity override.
             if (PerCosmeticOverrides.TryGet(asset.assetId, out var data) && data.Rarity != null) continue;
             asset.rarity = rarity;
+        }
+
+        if (Plugin.FixBridgedCosmetics.Value && !_moreHeadFixDone)
+        {
+            _moreHeadFixDone = true;
+            TryFixMoreHeadPrefabs();
+        }
+    }
+
+    // ── Cosmetics fixes ───────────────────────────────────────────────────
+
+    /// Removes physics components and wires up animation looping on a cosmetic so
+    /// every instance created from it is born in a clean state.
+    private static void FixPrefab(GameObject prefab, string label = "", Type? partShrinkerType = null, bool verbose = true)
+    {
+        int cols = 0, rbs = 0, animLoops = 0, animrLoops = 0;
+
+        foreach (var col in prefab.GetComponentsInChildren<Collider>(includeInactive: true))
+        {
+            cols++;
+            try   { UnityEngine.Object.DestroyImmediate(col); }
+            catch { try { col.enabled = false; } catch { /* best effort */ } }
+        }
+
+        foreach (var rb in prefab.GetComponentsInChildren<Rigidbody>(includeInactive: true))
+        {
+            rbs++;
+            try   { UnityEngine.Object.DestroyImmediate(rb); }
+            catch { try { rb.isKinematic = true; rb.useGravity = false; } catch { /* best effort */ } }
+        }
+
+        foreach (var anim in prefab.GetComponentsInChildren<Animation>(includeInactive: true))
+        {
+            // Setting wrapMode on the shared clip makes every instance play in loop mode.
+            if (anim.clip != null && anim.clip.wrapMode != WrapMode.Loop)
+            {
+                anim.clip.wrapMode = WrapMode.Loop;
+                animLoops++;
+            }
+            anim.wrapMode = WrapMode.Loop;
+        }
+
+        foreach (var animator in prefab.GetComponentsInChildren<Animator>(includeInactive: true))
+        {
+            if (animator.runtimeAnimatorController == null) continue;
+
+            bool needsLooper = false;
+            foreach (var clip in animator.runtimeAnimatorController.animationClips)
+            {
+                if (clip != null && !clip.isLooping) { needsLooper = true; break; }
+            }
+
+            if (needsLooper && animator.GetComponent<AnimatorLooper>() == null)
+            {
+                animator.gameObject.AddComponent<AnimatorLooper>();
+                animrLoops++;
+            }
+        }
+
+        string displayLabel = string.IsNullOrEmpty(label) ? prefab.name : label;
+
+        if (cols > 0 || rbs > 0 || animLoops > 0 || animrLoops > 0)
+        {
+            string msg = $"'{displayLabel}': " +
+                         $"removed {cols} Collider(s), {rbs} Rigidbody(s); " +
+                         $"looped {animLoops} Animation clip(s), {animrLoops} Animator(s).";
+            if (verbose) Plugin.Logger.LogInfo(msg);
+            else         Plugin.Logger.LogDebug(msg);
+        }
+
+        // ── PartShrinker detection ─────────────────────────────────────────────
+        // Scans for PartShrinker components (MoreHeadUtilities) so users know
+        // whether body-part hiding will work for this cosmetic.
+        var shrinkerType = partShrinkerType ?? FindPartShrinkerType();
+        if (shrinkerType != null)
+        {
+            var shrinkers = prefab.GetComponentsInChildren(shrinkerType, includeInactive: true);
+            if (shrinkers.Length > 0)
+            {
+                string msg = $"'{displayLabel}': {shrinkers.Length} component(s) — body-part hiding active.";
+                if (verbose) Plugin.Logger.LogInfo(msg);
+                else         Plugin.Logger.LogDebug(msg);
+            }
+        }
+        else
+        {
+            // MoreHeadUtilities not loaded
+            int missing = 0;
+            foreach (var mb in prefab.GetComponentsInChildren<MonoBehaviour>(includeInactive: true))
+                if (mb == null) missing++;
+
+            if (missing > 0)
+                Plugin.Logger.LogWarning(
+                    $"'{displayLabel}': {missing} missing script(s) detected — " +
+                    $"install MoreHeadUtilities if body-part hiding is needed.");
+        }
+    }
+
+    private static Type? FindPartShrinkerType()
+    {
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            if (asm.GetName().Name == "MoreHeadUtilities")
+                return asm.GetType("MoreHeadUtilities.PartShrinker");
+        return null;
+    }
+
+    private static void TryFixMoreHeadPrefabs()
+    {
+        try
+        {
+            var mhType = Type.GetType("MoreHead.HeadDecorationManager, MoreHead");
+            if (mhType == null) return; // MoreHead not installed
+
+            var decorationsProp = mhType.GetProperty(
+                "Decorations", BindingFlags.Public | BindingFlags.Static);
+            if (decorationsProp == null) return;
+
+            var list = decorationsProp.GetValue(null) as System.Collections.IList;
+            if (list == null || list.Count == 0) return;
+
+            var prefabProp = list[0]!.GetType().GetProperty("Prefab");
+            if (prefabProp == null) return;
+
+            // Resolve once here — at menu-open time all plugins are loaded, so the
+            // result is final. Passing it into FixPrefab avoids scanning all assemblies
+            // once per prefab across what can be a large batch.
+            var partShrinkerType = FindPartShrinkerType();
+
+            int count = 0;
+            foreach (var item in list)
+            {
+                if (prefabProp.GetValue(item) is GameObject prefab)
+                {
+                    FixPrefab(prefab, partShrinkerType: partShrinkerType, verbose: false);
+                    count++;
+                }
+            }
+
+            Plugin.Logger.LogInfo(
+                $"Applied fixes to {count} bridged cosmetics.");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Logger.LogDebug(
+                $"Bridged cosmetic pass skipped: {ex.Message}");
         }
     }
 

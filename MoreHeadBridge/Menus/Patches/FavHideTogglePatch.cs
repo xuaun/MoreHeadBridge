@@ -42,6 +42,9 @@ internal static class FavHideTogglePatch
         // Normal click — let vanilla handle it.
         if (!ctrl && !alt && !shift) return true;
 
+        // Ctrl/alt interactions require the extended menu (FAV/HIDE tabs must exist).
+        if ((ctrl || alt) && !Plugin.EnableMenuEnhancements.Value) return true;
+
         // Locked cosmetics: let vanilla play its locked feedback.
         if (__instance.menuButton != null && __instance.menuButton.disabled) return true;
 

@@ -23,15 +23,18 @@ internal static class CosmeticsMenuStartPatch
         {
             HhhCosmeticLoader.ReapplyDefaultRarityToAll();
             CosmeticsMenuState.SetActivePage(__instance);
-            CosmeticsMenuState.EnsureCategories();
 
-            InjectVirtualCategoryButtons(__instance);
-            ReorderCategoryStrip(__instance);
-            InjectSecondDivider(__instance);
-            BuildVirtualCategoryTypeList(__instance);
-            InjectStatusLabel(__instance);
-            InjectSearchField(__instance);
-            InjectEmptyStateLabel(__instance);
+            if (Plugin.EnableMenuEnhancements.Value)
+            {
+                CosmeticsMenuState.EnsureCategories();
+                InjectVirtualCategoryButtons(__instance);
+                ReorderCategoryStrip(__instance);
+                InjectSecondDivider(__instance);
+                BuildVirtualCategoryTypeList(__instance);
+                InjectStatusLabel(__instance);
+                InjectSearchField(__instance);
+                InjectEmptyStateLabel(__instance);
+            }
         }
         catch (System.Exception ex)
         {
