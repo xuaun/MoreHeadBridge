@@ -334,6 +334,17 @@ internal static partial class MiniSemibotSpawner
     internal static int RemoteMiniActorOf(PlayerCosmetics? pc)
         => MiniSemibotSync.ActorOf(RemoteMiniWearerOf(pc));
 
+    // The mini that follows the LIVE local player (menu/preview minis have no real wearer avatar).
+    internal static bool IsLiveLocalMini(PlayerCosmetics? pc)
+    {
+        if (pc == null) return false;
+        MiniSemibotFollow? follow = null;
+        for (var t = pc.transform; t != null && follow == null; t = t.parent)
+            follow = t.GetComponent<MiniSemibotFollow>();
+        var wearer = follow != null ? follow.WearerAvatar : null;
+        return wearer != null && wearer.isLocal;
+    }
+
     // The death-head model clones the outfit ONCE, so a colour/animation edit wouldn't show while a mini is in death-head state — invalidate our OWN minis' death heads to rebuild next frame. (Remote rebuild via OnRemoteSyncChanged.)
     internal static void InvalidateLocalDeathHeads()
     {
@@ -357,6 +368,21 @@ internal static partial class MiniSemibotSpawner
             if (wearerAvatar != null && !wearerAvatar.isLocal && kv.Value != null)
                 kv.Value.GetComponent<MiniSemibotFollow>()?.InvalidateDeathHead();
         }
+    }
+
+    // Light recolor (no re-dress) of the LOCAL wearer's mini — colour-only edits don't change the
+    // outfit signature, so RefreshOutfit alone leaves PlayerMaterial-driven cosmetics stale.
+    internal static void RecolorLocalMini(PlayerCosmetics wearer)
+    {
+        if (wearer == null) return;
+        PruneActive();
+        if (!_active.TryGetValue(wearer, out var go) || go == null) return;
+
+        var tag = go.GetComponent<MiniSemibotTag>();
+        if (tag != null && tag.PresetSlot >= 0) return; // preset minis don't mirror live palette edits
+
+        var pc = go.GetComponentInChildren<PlayerCosmetics>(true);
+        pc?.SetupColors(_synced: false);
     }
 
     // Re-broadcast after a per-cosmetic colour edit — a colour-only edit doesn't change the outfit signature, so RefreshOutfit alone wouldn't resend. Local view updates via the normal SetupColors path.
@@ -487,7 +513,7 @@ internal static partial class MiniSemibotSpawner
         return menu != null && menu.expressionAvatar;
     }
 
-    // True when the WEARER is a menu/preview avatar (every one is a PlayerAvatarMenu; the real avatar isn't). Such minis must NEVER enter death/tumble states — that's the "death head sticks at the menu position" bug.
+    // True when the WEARER is a menu/preview avatar (every one is a PlayerAvatarMenu; the real avatar isn't). Such minis must NEVER enter death/tumble states.
     internal static bool IsMenuOrPreviewWearer(PlayerAvatarVisuals? v)
     {
         if (v == null) return false;

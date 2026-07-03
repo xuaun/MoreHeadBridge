@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.0.1
+
+- Fixed a bug where the ballon from my MonsterCosmetics mod in the mini-semibot ingame would not apply the correct color.
+
 ## v3.0.0
 
 > ⚠ **Breaking — config keys renamed.** Several options were renamed/split, so your existing

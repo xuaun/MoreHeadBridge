@@ -89,4 +89,27 @@ internal static class RuntimeConfigApplier
         => pc != null
            && AvatarIdentity.IsLocalStyleTarget(pc)
            && !MiniSemibotSpawner.IsPresetMini(pc);
+
+    // Custom-flow live-preview target: menu/preview avatars only — the in-game avatar and its world
+    // mini apply at the cosmetics-menu confirm (vanilla timing).
+    internal static bool IsMenuPreviewPaintTarget(PlayerCosmetics? pc)
+    {
+        if (!IsLivePaintTarget(pc)) return false;
+        var visuals = pc!.playerAvatarVisuals;
+        if (visuals != null && !visuals.isMenuAvatar && visuals.playerAvatar?.isLocal == true)
+            return false;                                    // live in-game avatar
+        return !MiniSemibotSpawner.IsLiveLocalMini(pc);      // world mini follows the same timing
+    }
+
+    // Menu-scoped ReapplyLocalCosmeticColors for the custom flows: in-game stays untouched until the menu confirm.
+    internal static void ReapplyMenuCosmeticColors()
+    {
+        foreach (var pc in Object.FindObjectsOfType<PlayerCosmetics>(includeInactive: true))
+        {
+            if (!IsMenuPreviewPaintTarget(pc)) continue;
+            pc.SetupColors(_synced: false);
+        }
+
+        LobbyHeadCustomColorPatch.RefreshAllHeads();
+    }
 }

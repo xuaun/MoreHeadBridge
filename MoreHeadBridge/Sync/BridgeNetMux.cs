@@ -1,5 +1,5 @@
 // Single fixed-code Photon event carrying ALL MoreHeadBridge sync channels (overrides, mini-semibot, colours, mimic audio).
-// Why not REPOLib NetworkedEvent per channel: REPOLib codes go by REGISTRATION ORDER and omit the name, so a mod-list/version mismatch misroutes payloads (the v3.0.0 "cross-wired" bug). A fixed code + magic/channel envelope routes by NAME — foreign payloads silently dropped.
+// Why not REPOLib NetworkedEvent per channel: REPOLib codes go by REGISTRATION ORDER and omit the name, so a mod-list/version mismatch misroutes payloads. A fixed code + magic/channel envelope routes by NAME — foreign payloads silently dropped.
 // Stateful channels ride one buffered room-cache snapshot per sender (RemoveFromRoomCache filters by code+sender); receivers dedupe per actor+channel.
 
 using ExitGames.Client.Photon;

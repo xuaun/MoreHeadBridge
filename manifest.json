@@ -1,6 +1,6 @@
 {
     "name": "MoreHeadBridge",
-    "version_number": "3.0.0",
+    "version_number": "3.0.1",
     "website_url": "https://github.com/xuaun/MoreHeadBridge",
     "description": "Integrates MoreHead .hhh cosmetics directly into the vanilla R.E.P.O. cosmetics menu and expands it with multi-equip, per-cosmetic color, Mini-Semibot, customization tools, and compatibility features.",
     "dependencies": [

@@ -12,5 +12,26 @@ internal static class MiniSemibotColorsRefreshPatch
     {
         MiniSemibotOutfitCache.RecordColors(__instance, _colors);
         MiniSemibotSpawner.RefreshOutfit(__instance);
+        RecolorMiniOfLiveLocalWearer(__instance);
     }
+
+    // LIVE local wearer recoloured → refresh what hangs off their colours (world mini + CustomGrabColor beam).
+    internal static void RecolorMiniOfLiveLocalWearer(PlayerCosmetics pc)
+    {
+        if (pc == null) return;
+        var visuals = pc.playerAvatarVisuals;
+        if (visuals == null || visuals.isMenuAvatar) return;
+        if (visuals.playerAvatar == null || !visuals.playerAvatar.isLocal) return;
+        MiniSemibotSpawner.RecolorLocalMini(pc);
+        CustomGrabColorCompat.RefreshLocalBeam();
+    }
+}
+
+// Same trigger for SetupColorsAllLogic (SetupColors collapses to it when all types share one colour).
+[HarmonyPatch(typeof(PlayerCosmetics), "SetupColorsAllLogic")]
+internal static class MiniSemibotColorsAllRefreshPatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(PlayerCosmetics __instance)
+        => MiniSemibotColorsRefreshPatch.RecolorMiniOfLiveLocalWearer(__instance);
 }

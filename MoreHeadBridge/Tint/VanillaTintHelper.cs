@@ -72,8 +72,8 @@ internal static class VanillaTintHelper
         foreach (var pc in Object.FindObjectsOfType<PlayerCosmetics>(true))
         {
             if (pc?.playerMaterials == null) continue;
-            // Local player's own avatars only — never remote players / remote minis / preset minis.
-            if (!RuntimeConfigApplier.IsLivePaintTarget(pc)) continue;
+            // Menu/preview avatars only — the in-game avatar and its mini apply at the menu confirm.
+            if (!RuntimeConfigApplier.IsMenuPreviewPaintTarget(pc)) continue;
             foreach (var pm in pc.playerMaterials)
             {
                 if (pm == null || !pm.tintable) continue;
@@ -244,8 +244,8 @@ internal static class VanillaTintHelper
             foreach (var pc in Object.FindObjectsOfType<PlayerCosmetics>(true))
             {
                 if (pc?.playerMaterials == null) continue;
-                // Local player's own avatars only — never remote players / remote minis / preset minis.
-                if (!RuntimeConfigApplier.IsLivePaintTarget(pc)) continue;
+                // Menu/preview avatars only — the in-game avatar and its mini apply at the menu confirm.
+                if (!RuntimeConfigApplier.IsMenuPreviewPaintTarget(pc)) continue;
                 foreach (var pm in pc.playerMaterials)
                 {
                     if (pm == null || !pm.tintable || pm.cosmetic != null) continue;
@@ -293,7 +293,7 @@ internal static class VanillaTintHelper
         PerCosmeticColors.SaveSlotAnimations();
         PerCosmeticColors.SaveCustomSlots();
         if (anyAnim) ColorAnimatorRefresher.RefreshLocal();
-        RuntimeConfigApplier.ReapplyLocalCosmeticColors();
+        RuntimeConfigApplier.ReapplyMenuCosmeticColors();
         if (SemiFunc.IsMultiplayer()) PerCosmeticColorNetworkSync.BroadcastAll();
     }
 
@@ -323,7 +323,7 @@ internal static class VanillaTintHelper
 
         if (!any) return;
         PerCosmeticColors.SaveCustom();
-        RuntimeConfigApplier.ReapplyLocalCosmeticColors();
+        RuntimeConfigApplier.ReapplyMenuCosmeticColors();
         if (SemiFunc.IsMultiplayer()) PerCosmeticColorNetworkSync.BroadcastAll();
     }
 

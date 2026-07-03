@@ -141,12 +141,12 @@ internal static class BridgeTintHelper
     }
 
     /// Applies an arbitrary RGB (the "C" custom colour) to every live BridgeTintMaterial of the
-    /// asset, so a custom-colour pick shows immediately without waiting for SetupColorsLogic.
+    /// asset — menu/preview avatars only; the in-game avatar and its mini apply at the menu confirm.
     internal static void ApplyWholeAssetRGBToLiveInstances(CosmeticAsset asset, Color color)
     {
         foreach (var btm in Object.FindObjectsOfType<BridgeTintMaterial>(true))
             if (btm?.cosmetic?.cosmeticAsset == asset
-                && RuntimeConfigApplier.IsLivePaintTarget(btm.cosmetic?.playerCosmetics))
+                && RuntimeConfigApplier.IsMenuPreviewPaintTarget(btm.cosmetic?.playerCosmetics))
                 btm.ApplyColorRGB(color);
     }
 
@@ -156,8 +156,8 @@ internal static class BridgeTintHelper
         foreach (var btm in Object.FindObjectsOfType<BridgeTintMaterial>(true))
         {
             if (btm?.cosmetic?.cosmeticAsset != asset || btm.materials == null) continue;
-            // Local player's own avatars only — never remote players / remote minis / preset minis.
-            if (!RuntimeConfigApplier.IsLivePaintTarget(btm.cosmetic?.playerCosmetics)) continue;
+            // Menu/preview avatars only — the in-game avatar and its mini apply at the menu confirm.
+            if (!RuntimeConfigApplier.IsMenuPreviewPaintTarget(btm.cosmetic?.playerCosmetics)) continue;
             for (int localSlot = 0; localSlot < btm.materials.Length; localSlot++)
                 if (btm.SlotIdOf(localSlot) == flatSlot)
                     btm.ApplyColorRGBToSlot(localSlot, color);

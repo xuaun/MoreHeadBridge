@@ -130,7 +130,7 @@ internal static class CustomColorPopup
             MenuAPI.CreateREPOButton("Cancel", () =>
             {
                 popup.ClosePage(false);
-                RuntimeConfigApplier.ReapplyLocalCosmeticColors();   // revert live preview
+                RuntimeConfigApplier.ReapplyMenuCosmeticColors();   // revert live preview (menus only)
             }, row, new Vector2(BtnCancelX, 0f));
 
             MenuAPI.CreateREPOButton("Save", () =>
@@ -142,12 +142,12 @@ internal static class CustomColorPopup
                 else if (slot >= 0)
                 {
                     PerCosmeticColors.SetCustomSlotColor(assetId, slot, Current());
-                    RuntimeConfigApplier.ReapplyLocalCosmeticColors();
+                    RuntimeConfigApplier.ReapplyMenuCosmeticColors();
                 }
                 else
                 {
                     PerCosmeticColors.SetCustomColor(assetId, Current());
-                    RuntimeConfigApplier.ReapplyLocalCosmeticColors();
+                    RuntimeConfigApplier.ReapplyMenuCosmeticColors();
                 }
                 BridgeCustomColorButton.Active?.SetDisplayColor(Current());
                 BridgeCustomColorButton.Active?.SelectRingNow();
@@ -171,12 +171,12 @@ internal static class CustomColorPopup
                 else if (slot >= 0)
                 {
                     if (PerCosmeticColors.RemoveCustomSlotNoSave(assetId, slot)) PerCosmeticColors.SaveCustomSlots();
-                    RuntimeConfigApplier.ReapplyLocalCosmeticColors();
+                    RuntimeConfigApplier.ReapplyMenuCosmeticColors();
                 }
                 else
                 {
                     if (PerCosmeticColors.RemoveCustomColorNoSave(assetId)) PerCosmeticColors.SaveCustom();
-                    RuntimeConfigApplier.ReapplyLocalCosmeticColors();
+                    RuntimeConfigApplier.ReapplyMenuCosmeticColors();
                     if (SemiFunc.IsMultiplayer()) PerCosmeticColorNetworkSync.BroadcastAll();
                 }
                 popup.ClosePage(false);
