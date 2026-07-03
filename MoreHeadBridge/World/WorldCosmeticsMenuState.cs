@@ -3,9 +3,7 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
-// Shared state for the WORLD category UI — holds the injected CosmeticCategoryAsset
-// and a reference to the active Cosmetics-tab page so other patches can read
-// selectedCategory without a FindObjectOfType call.
+// Shared state for the WORLD category UI — holds the injected CosmeticCategoryAsset and a reference to the active Cosmetics-tab page so other patches can read selectedCategory without a FindObjectOfType call.
 internal static class WorldCosmeticsMenuState
 {
     internal static CosmeticCategoryAsset? Category { get; private set; }
@@ -21,14 +19,11 @@ internal static class WorldCosmeticsMenuState
         Category = ScriptableObject.CreateInstance<CosmeticCategoryAsset>();
         Category.name = "MHB_World";
         Category.categoryName = "WORLD";
-        // World assets are Hat type internally so vanilla populates sections with Hat
-        // cosmetics (which include worlds). WorldCosmeticsMenuFilterPatch then controls
-        // visibility via IsWorldAsset.
+        // World assets are Hat type internally, so vanilla populates sections with Hat cosmetics (which include worlds); WorldCosmeticsMenuFilterPatch then controls visibility via IsWorldAsset.
         Category.typeList = [SemiFunc.CosmeticType.Hat];
     }
 
-    // Splits the currently-equipped Hat-type cosmetics into real hats and worlds.
-    // Used by patches that need to protect one side when the other is being cleared/unequipped.
+    // Splits the currently-equipped Hat-type cosmetics into real hats and worlds; used by patches that protect one side when the other is being cleared/unequipped.
     internal static void PartitionHatCosmetics(
         MetaManager meta,
         out List<int> realHats,

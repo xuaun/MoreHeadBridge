@@ -1,14 +1,10 @@
 // ============================================================================
-// [MenuCapture] — captures the existing cosmetics-menu avatar render texture
-// and saves it as a PNG icon for a given CosmeticAsset.
-//
-// Used by:
-//   - CosmeticHoverPatch.cs  (capture when the user hovers a button)
-//   - BatchIconGenerator.cs  (one-shot batch cycling all cosmetics)
+// [MenuCapture] — captures the cosmetics-menu avatar render texture and saves it as a PNG icon for a CosmeticAsset. Used by CosmeticHoverPatch (capture on hover) and BatchIconGenerator (one-shot batch).
 // ============================================================================
 
 using HarmonyLib;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
@@ -20,16 +16,7 @@ internal static class IconCapture
 {
     private const int OutSize = 128;
 
-    // Private cache directory.
-    //   %persistentDataPath%\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\
-    //
-    // REPOLib's MetaManagerPatch.AwakePatch wipes %persistentDataPath%\Cache\Icons\Cosmetics\
-    // for any PNG that doesn't match a vanilla cosmetic name. Our folder sits alongside it
-    // in CosmeticsModded\ — same parent, different sibling — so REPOLib never touches it.
-    // GetIconPatch loads from here directly; vanilla's cache never needs to know about them.
-    //
-    // Legacy path (< fix/folder-paths): %persistentDataPath%\MoreHeadBridge_Icons\
-    // Files are migrated automatically on first run after the update.
+    // Private cache dir: %persistentDataPath%\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\. REPOLib's MetaManagerPatch wipes Cache\Icons\Cosmetics\ of non-vanilla PNGs, but our folder is a SIBLING under CosmeticsModded\ so it's untouched; GetIconPatch loads from here directly. Legacy path (< fix/folder-paths) %persistentDataPath%\MoreHeadBridge_Icons\ is migrated automatically on first run.
     private static string? _cacheDir;
     internal static string CacheDir
     {
@@ -43,15 +30,13 @@ internal static class IconCapture
         }
     }
 
-    // Moves PNGs from the old root-level cache folder to the new structured path.
-    // Runs once (when CacheDir is first evaluated). Non-fatal: a warning is logged
-    // on failure and the player can regenerate icons with AutoCaptureIcons/GenerateAllIcons.
+    // Migrates PNGs from the old root-level cache folder; runs once when CacheDir is first evaluated. Non-fatal — icons can be regenerated.
     private static void MigrateLegacyCache(string newDir)
     {
         string oldDir = Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons");
         if (!Directory.Exists(oldDir)) return;
 
-        Plugin.Logger.LogInfo($"IconCapture: migrating icon cache from legacy location...");
+        BceConsole.LogInfo($"IconCapture: migrating icon cache from legacy location...");
         try
         {
             Directory.CreateDirectory(newDir);
@@ -71,12 +56,11 @@ internal static class IconCapture
                 catch (Exception ex)
                 {
                     failed++;
-                    Plugin.Logger.LogWarning(
+                    BceConsole.LogWarning(
                         $"IconCapture: could not migrate '{Path.GetFileName(file)}': {ex.Message}");
                 }
             }
 
-            // Remove the old directory if it is now empty.
             try
             {
                 if (Directory.GetFiles(oldDir).Length == 0)
@@ -84,22 +68,101 @@ internal static class IconCapture
             }
             catch { /* non-fatal — leave the empty folder, it causes no harm */ }
 
-            Plugin.Logger.LogInfo(
-                $"IconCapture: cache migration done — {moved} moved, {failed} failed.");
+            BceConsole.LogInfo(
+                $"IconCapture: cache migration done — {moved} moved, {failed} failed");
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogWarning($"IconCapture: cache migration failed: {ex.Message}");
+            BceConsole.LogWarning($"IconCapture: cache migration failed: {ex.Message}");
         }
     }
 
     internal static string CachePathFor(CosmeticAsset asset)
     {
-        string name = asset.name.Replace("(Clone)", "").ToLowerInvariant();
-        return Path.Combine(CacheDir, name + ".png");
+        string name = asset.name.Replace("(Clone)", "").Trim().ToLowerInvariant();
+        return Path.Combine(CacheDir, MakeSafeFileName(name) + ".png");
     }
 
-    internal static bool HasCache(CosmeticAsset asset) => File.Exists(CachePathFor(asset));
+    // Strips path separators and ".." so a cosmetic name can't escape the cache directory.
+    private static string MakeSafeFileName(string name)
+    {
+        name = name.Replace('/', '_').Replace('\\', '_').Replace("..", "__");
+        return name.Length == 0 ? "_unnamed" : name;
+    }
+
+    // In-memory set of known-cached paths — GetIcon fires for every visible button during RefreshScrollContent, so no File.Exists per call. Seeded lazily, updated on each capture write.
+    private static HashSet<string>? _knownCached;
+
+    private static void EnsureCacheSeeded()
+    {
+        if (_knownCached != null) return;
+        _knownCached = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (Directory.Exists(CacheDir))
+            {
+                foreach (string f in Directory.GetFiles(CacheDir, "*.png"))
+                    _knownCached.Add(f);
+            }
+        }
+        catch { /* non-fatal — worst case we miss a file and regenerate it */ }
+    }
+
+    /// Marks a path as cached in the in-memory set.
+    /// Call after successfully writing a PNG to the cache directory.
+    internal static void MarkCached(string path)
+    {
+        EnsureCacheSeeded();
+        _knownCached!.Add(path);
+    }
+
+    /// Returns true if a cached PNG exists for this asset (in-memory O(1) check).
+    internal static bool HasCache(CosmeticAsset asset)
+    {
+        EnsureCacheSeeded();
+        return _knownCached!.Contains(CachePathFor(asset));
+    }
+
+    /// Registers an externally written PNG (e.g. the Mini-Semibot preset-style icon) in the
+    /// in-memory cache so HasCache() is true without waiting for a disk reseed.
+    internal static void MarkCached(CosmeticAsset asset)
+    {
+        EnsureCacheSeeded();
+        _knownCached!.Add(CachePathFor(asset));
+    }
+
+    /// Deletes the cached PNG for the given asset from disk and from the in-memory
+    /// set, then clears the Sprite so GetIconPatch re-evaluates on the next call.
+    internal static void DeleteCache(CosmeticAsset asset)
+    {
+        EnsureCacheSeeded();
+        string path = CachePathFor(asset);
+
+        _knownCached!.Remove(path);
+
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            BceConsole.LogWarning($"IconCapture: could not delete '{Path.GetFileName(path)}': {ex.Message}");
+        }
+
+        if (asset.icon != null)
+        {
+            UnityEngine.Object.Destroy(asset.icon);
+            asset.icon = null;
+        }
+
+        // Allow the hover-capture coroutine to fire again on the next hover — without this, _scheduled still holds the assetId and blocks re-capture.
+        CosmeticHoverPatch.Invalidate(asset);
+
+        // Re-enable the Generate Icons toolbar button now that there is something to generate.
+        CosmeticsMenuStartPatch.RefreshToolsButtons?.Invoke();
+
+        BridgeLog.Trace($"IconCapture: deleted cached icon for '{asset.name}'");
+    }
 
     private static FieldInfo? _renderTextureInstanceField;
 
@@ -110,7 +173,7 @@ internal static class IconCapture
 
         _renderTextureInstanceField ??= AccessTools.Field(typeof(PlayerAvatarMenuHover), "renderTextureInstance");
         if (_renderTextureInstanceField == null)
-            Plugin.Logger.LogWarning("IconCapture: PlayerAvatarMenuHover.renderTextureInstance not found — update MoreHeadBridge.");
+            BceConsole.LogWarning("IconCapture: PlayerAvatarMenuHover.renderTextureInstance not found — update MoreHeadBridge");
         else
         {
             var rt = _renderTextureInstanceField.GetValue(avatar) as RenderTexture;
@@ -121,8 +184,6 @@ internal static class IconCapture
         return rawImage != null ? rawImage.texture as RenderTexture : null;
     }
 
-    // Reads the current avatar render texture and saves a PNG for this asset.
-    // Returns true on success. Skips if a cached file already exists.
     internal static bool TryCapture(CosmeticAsset asset)
         => TryCapture(
             asset,
@@ -135,6 +196,11 @@ internal static class IconCapture
     {
         if (asset == null) return false;
         if (HasCache(asset)) return false;
+
+        // Isolated render (SemiIconMaker-style) instead of cropping the live avatar; per-cosmetic override falls back to UseIsolatedIconRender. Bridge only (.hhh prefab is a self-contained mesh) — never Mini-Semibot, whose placeholder prefab has no mesh.
+        if (BridgeIds.IsBridgeAsset(asset) && asset.assetId != MiniSemibotCosmetic.AssetId
+            && CustomizerStore.GetEffectiveIsolatedIcon(asset.assetId))
+            return TryCaptureIsolated(asset);
 
         Texture2D? full = null;
         Texture2D? cropped = null;
@@ -153,7 +219,6 @@ internal static class IconCapture
             full.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             full.Apply();
 
-            // Crop to the body region for this cosmetic type, then resize to OutSize.
             Rect cropNorm = GetCropRect(type);
             int cropX = Mathf.RoundToInt(cropNorm.x * rt.width);
             int cropY = Mathf.RoundToInt(cropNorm.y * rt.height);
@@ -169,22 +234,24 @@ internal static class IconCapture
 
             scaled = ResizeBilinear(cropped, OutSize, OutSize);
 
-            File.WriteAllBytes(CachePathFor(asset), scaled.EncodeToPNG());
+            string cachePath = CachePathFor(asset);
+            File.WriteAllBytes(cachePath, scaled.EncodeToPNG());
+            MarkCached(cachePath);
 
-            // RefreshVisibleButtons below triggers UpdateIcon which calls GetIconPatch,
-            // which recreates the icon from the freshly-written PNG.
+            // RefreshVisibleButtons below triggers UpdateIcon → GetIconPatch, which recreates the icon from the freshly-written PNG.
             if (asset.icon != null)
             {
                 UnityEngine.Object.Destroy(asset.icon);
                 asset.icon = null;
             }
             RefreshVisibleButtons(asset);
+            CosmeticsMenuStartPatch.RefreshToolsButtons?.Invoke();
 
             return true;
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogDebug($"Icon capture failed for '{asset.name}': {ex.Message}");
+            BridgeLog.Trace($"Icon capture failed for '{asset.name}': {ex.Message}");
             return false;
         }
         finally
@@ -196,18 +263,53 @@ internal static class IconCapture
         }
     }
 
-    // Crop regions in normalized UV space (x, y=bottom, width, height).
-    // Calibrated empirically against the avatar preview RenderTexture.
-    // If the avatar rig, camera angle, or preview resolution changes after a
-    // game update, re-tune these values and delete the icon cache so they regenerate.
-    private static readonly Rect CropHead  = new(0.22f, 0.62f, 0.56f, 0.35f); // head, face, ears, eyewear
-    private static readonly Rect CropNeck  = new(0.22f, 0.50f, 0.56f, 0.38f); // neck / lower-face (HeadBottom) — starts below head, still above torso
-    private static readonly Rect CropBody  = new(0.18f, 0.34f, 0.64f, 0.36f); // torso
-    private static readonly Rect CropArmR  = new(0.05f, 0.30f, 0.50f, 0.40f); // right arm → left side of frame
-    private static readonly Rect CropArmL  = new(0.45f, 0.30f, 0.50f, 0.40f); // left arm  → right side of frame
-    private static readonly Rect CropLegR  = new(0.10f, 0.00f, 0.45f, 0.45f); // right leg/foot → left side
-    private static readonly Rect CropLegL  = new(0.45f, 0.00f, 0.45f, 0.45f); // left leg/foot  → right side
-    private static readonly Rect CropFull  = new(0f,    0f,    1f,    1f);     // world / unknown → full frame
+    // Renders the cosmetic in isolation (SemiIconMaker-style) and saves the PNG, sharing the cache + button-refresh tail with the avatar-crop path. Returns true on success.
+    private static bool TryCaptureIsolated(CosmeticAsset asset)
+    {
+        Texture2D? rendered = null;
+        Texture2D? scaled = null;
+        try
+        {
+            rendered = IsolatedIconRenderer.Render(asset);
+            if (rendered == null) return false;
+
+            Directory.CreateDirectory(CacheDir);
+            scaled = ResizeBilinear(rendered, OutSize, OutSize);
+
+            string cachePath = CachePathFor(asset);
+            File.WriteAllBytes(cachePath, scaled.EncodeToPNG());
+            MarkCached(cachePath);
+
+            if (asset.icon != null)
+            {
+                UnityEngine.Object.Destroy(asset.icon);
+                asset.icon = null;
+            }
+            RefreshVisibleButtons(asset);
+            CosmeticsMenuStartPatch.RefreshToolsButtons?.Invoke();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            BridgeLog.Trace($"Isolated icon render failed for '{asset.name}': {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            if (rendered != null) UnityEngine.Object.Destroy(rendered);
+            if (scaled != null) UnityEngine.Object.Destroy(scaled);
+        }
+    }
+
+    // Crop regions in normalized UV space, calibrated empirically against the avatar preview RT. If the rig/camera/resolution changes after a game update, re-tune and delete the icon cache.
+    private static readonly Rect CropHead = new(0.22f, 0.62f, 0.56f, 0.35f); // head, face, ears, eyewear
+    private static readonly Rect CropNeck = new(0.22f, 0.50f, 0.56f, 0.38f); // neck / lower-face (HeadBottom) — starts below head, still above torso
+    private static readonly Rect CropBody = new(0.18f, 0.34f, 0.64f, 0.36f); // torso
+    private static readonly Rect CropArmR = new(0.05f, 0.30f, 0.50f, 0.40f); // right arm → left side of frame
+    private static readonly Rect CropArmL = new(0.45f, 0.30f, 0.50f, 0.40f); // left arm  → right side of frame
+    private static readonly Rect CropLegR = new(0.10f, 0.00f, 0.45f, 0.45f); // right leg/foot → left side
+    private static readonly Rect CropLegL = new(0.45f, 0.00f, 0.45f, 0.45f); // left leg/foot  → right side
+    private static readonly Rect CropFull = new(0f, 0f, 1f, 1f);     // world / unknown → full frame
 
     private static Rect GetCropRect(SemiFunc.CosmeticType type)
     {
@@ -265,12 +367,99 @@ internal static class IconCapture
         }
     }
 
-    private static void RefreshVisibleButtons(CosmeticAsset asset)
+    // Clears the in-memory cache + destroys loaded sprites so icons regenerate. Call after a bulk file deletion (IconCacheCleaner) to keep memory and disk consistent.
+    internal static void InvalidateAll()
+    {
+        _knownCached = null; // force re-seed from disk on next HasCache call
+
+        var meta = MetaManager.instance;
+        if (meta == null) return;
+
+        foreach (var id in HhhCosmeticLoader.RegisteredAssetIds)
+        {
+            var asset = meta.cosmeticAssets.Find(a => a != null && a.assetId == id);
+            if (asset == null) continue;
+            if (asset.icon != null)
+            {
+                UnityEngine.Object.Destroy(asset.icon);
+                asset.icon = null;
+            }
+            CosmeticHoverPatch.Invalidate(asset);
+        }
+
+        var menuPage = UnityEngine.Object.FindObjectOfType<MenuPageCosmetics>();
+        if (menuPage == null) return;
+        foreach (var btn in menuPage.GetComponentsInChildren<MenuElementCosmeticButton>(true))
+        {
+            if (btn?.cosmeticAsset != null && BridgeIds.IsBridgeAsset(btn.cosmeticAsset))
+                btn.UpdateIcon(false);
+        }
+    }
+
+    // Trims src to its non-transparent content, pads to a square with a small margin, scales to OutSize and writes the PNG to cachePath; returns the saved icon's sprite (null on failure). Used by the Mini-Semibot photo: the preset icon-maker RT is a tall portrait (208×416, robot filling ~1/3) that would otherwise letterbox inside the square cosmetic buttons.
+    internal static Sprite? SaveSquareContent(Texture2D? src, string cachePath, float marginFrac = 0.10f)
+    {
+        if (src == null) return null;
+        Texture2D? square = null;
+        Texture2D? scaled = null;
+        try
+        {
+            var px = src.GetPixels32();
+            int w = src.width, h = src.height;
+            int minX = w, minY = h, maxX = -1, maxY = -1;
+            for (int y = 0; y < h; y++)
+            {
+                int row = y * w;
+                for (int x = 0; x < w; x++)
+                {
+                    if (px[row + x].a <= 10) continue;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+            if (maxX < 0) { minX = 0; minY = 0; maxX = w - 1; maxY = h - 1; } // fully transparent — keep everything
+
+            int contentW = maxX - minX + 1;
+            int contentH = maxY - minY + 1;
+            int side = Mathf.CeilToInt(Mathf.Max(contentW, contentH) * (1f + 2f * marginFrac));
+
+            var sq = new Color32[side * side]; // zeroed = fully transparent
+            int dstX = (side - contentW) / 2;
+            int dstY = (side - contentH) / 2;
+            for (int y = 0; y < contentH; y++)
+                System.Array.Copy(px, (minY + y) * w + minX, sq, (dstY + y) * side + dstX, contentW);
+
+            square = new Texture2D(side, side, TextureFormat.RGBA32, false);
+            square.SetPixels32(sq);
+            square.Apply();
+
+            scaled = ResizeBilinear(square, OutSize, OutSize);
+
+            Directory.CreateDirectory(CacheDir);
+            File.WriteAllBytes(cachePath, scaled.EncodeToPNG());
+            MarkCached(cachePath);
+
+            return SemiFunc.LoadSpriteFromFile(cachePath);
+        }
+        catch (Exception ex)
+        {
+            BridgeLog.Trace($"SaveSquareContent failed: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            if (square != null) UnityEngine.Object.Destroy(square);
+            if (scaled != null) UnityEngine.Object.Destroy(scaled);
+        }
+    }
+
+    internal static void RefreshVisibleButtons(CosmeticAsset asset)
     {
         try
         {
-            // Prefer searching under the open menu page (cheap singular find + children)
-            // rather than sweeping every object in the scene.
+            // Prefer searching under the open menu page (cheap singular find + children) over sweeping every object in the scene.
             var menuPage = UnityEngine.Object.FindObjectOfType<MenuPageCosmetics>();
             MenuElementCosmeticButton[] buttons = menuPage != null
                 ? menuPage.GetComponentsInChildren<MenuElementCosmeticButton>(true)
@@ -284,7 +473,7 @@ internal static class IconCapture
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogDebug($"Button refresh failed: {ex.Message}");
+            BridgeLog.Trace($"Button refresh failed: {ex.Message}");
         }
     }
 

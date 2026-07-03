@@ -38,8 +38,6 @@ internal static class WorldCosmeticsIsEquippedPatch
 
         if (section.subCategory == SemiFunc.CosmeticType.Hat)
         {
-            // Hat "X" outside world context: exclude worlds from the check so a remaining
-            // equipped world doesn't prevent the button from showing as selected (cleared).
             __result = !MetaManager.instance.cosmeticEquipped
                 .Any(idx => idx >= 0
                             && idx < MetaManager.instance.cosmeticAssets.Count

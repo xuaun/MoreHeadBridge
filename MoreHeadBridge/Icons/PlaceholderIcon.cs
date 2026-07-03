@@ -2,9 +2,7 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
-// Builds a procedural 64x64 Sprite once and caches it. Used as a last-resort fallback
-// when a bridge cosmetic has neither a SemiIconMaker, nor a cached PNG, nor any usable
-// texture extracted from its prefab. Better than a blank cell.
+// Procedural 64x64 Sprite, built once and cached — last-resort fallback when a bridge cosmetic has no SemiIconMaker, cached PNG, or extractable texture.
 //
 // IMPORTANT: Unity Texture2D coordinates have (0,0) at the BOTTOM-LEFT. Sprites preserve
 // that orientation when rendered. So "top of visible M" = HIGH y in the array.
@@ -57,8 +55,7 @@ internal static class PlaceholderIcon
         return _cached;
     }
 
-    // Draws a stylized M: two vertical bars + two diagonals meeting in the middle bottom.
-    // Coordinates are in TEXTURE space: y=0 is bottom, y=Size-1 is top.
+    // Stylized M in TEXTURE space: y=0 is bottom, y=Size-1 is top.
     private static void DrawM(Color[] pixels, int size, Color color)
     {
         const int leftX  = 18;

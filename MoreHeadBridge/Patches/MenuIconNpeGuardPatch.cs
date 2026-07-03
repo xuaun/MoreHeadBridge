@@ -3,10 +3,7 @@ using System;
 
 namespace MoreHeadBridge;
 
-// MenuElementCosmeticButton.UpdateIcon warns "No IconMaker found" then NPEs because
-// the game code doesn't null-check after the warning. .hhh prefabs have no SemiIconMaker
-// (they were never built for the vanilla UI), so the icon button stays blank — that's
-// acceptable. The finalizer suppresses the crash without hiding other bugs.
+// UpdateIcon warns "No IconMaker found" then NPEs (no null-check after the warning). .hhh prefabs have no SemiIconMaker — blank icon button is acceptable; the finalizer suppresses just this crash.
 [HarmonyPatch(typeof(MenuElementCosmeticButton), "UpdateIcon")]
 internal static class MenuIconNpeGuardPatch
 {

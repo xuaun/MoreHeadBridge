@@ -5,22 +5,8 @@ using System.Reflection;
 
 namespace MoreHeadBridge;
 
-// The "X" button in a cosmetic section calls ToggleCosmetic with cosmeticAsset == null,
-// which makes vanilla loop over every equipped cosmetic whose type matches the section's
-// subCategory and call CosmeticUnequip on each. Because world cosmetics share Hat as
-// their vanilla type with real hats, clicking the Hat "X" clears both hat + world, and
-// clicking the World "X" also clears both.
-//
-// World "X" (virtual subCategory 999 or vanilla WORLD category):
-//   Intercept entirely — manually remove only worlds and call CosmeticPlayerUpdateLocal.
-//   Hats are never touched, so their GOs are never destroyed and never re-animate.
-//
-// Hat "X" (Hat subCategory in a non-World section):
-//   Let vanilla run but set IsUnequipAllRunning so WorldCosmeticsSetupPatch skips
-//   intermediate SetupCosmeticsLogic calls (worlds may be transiently absent while
-//   CosmeticUnequip loops remove Hat-type items before WorldCosmeticsUnequipPatch
-//   restores them). The Postfix's CosmeticPlayerUpdateLocal with correct final state
-//   then rebuilds pcEquipped properly — removing hat GOs, keeping world GOs.
+// The section "X" calls ToggleCosmetic(null) → vanilla unequips every cosmetic of the section's subCategory; since worlds share Hat, the Hat "X" cleared both hat + world (and vice-versa).
+// World "X" (999 / WORLD category): intercept entirely — remove only worlds + CosmeticPlayerUpdateLocal, never touching hats. Hat "X": let vanilla run but set IsUnequipAllRunning so WorldCosmeticsSetupPatch skips the intermediate SetupCosmeticsLogic calls (worlds are transiently absent mid-loop); the Postfix rebuilds pcEquipped with the correct final state.
 
 [HarmonyPatch(typeof(MenuElementCosmeticButton), "ToggleCosmetic")]
 [HarmonyPriority(Priority.High)]
@@ -61,8 +47,7 @@ internal static class WorldCosmeticsClearButtonPatch
 
         if (section.subCategory != SemiFunc.CosmeticType.Hat) return true;
 
-        // Vanilla WORLD category — section is Hat-type (worlds are Hat internally).
-        // Take the same manual path to avoid touching real hats.
+        // Vanilla WORLD category — section is Hat-type (worlds are Hat internally); take the same manual path to avoid touching real hats.
         if (WorldCosmeticsMenuState.IsWorldCategory(CosmeticsMenuState.ActivePage?.selectedCategory)
             || section.gameObject.name == CosmeticsFilterPatch.WorldSectionName)
         {
@@ -108,15 +93,12 @@ internal static class WorldCosmeticsClearButtonPatch
 
         if (any) MetaManager.instance.Save();
 
-        // When IsUnequipAllRunning was active, intermediate SetupCosmeticsLogic calls were
-        // skipped, leaving pcEquipped (the Cosmetic GO list) stale. Always refresh here so
-        // hat GOs are correctly removed without waiting for the next LateUpdate.
+        // Intermediate SetupCosmeticsLogic calls were skipped, leaving pcEquipped stale — always refresh here so hat GOs are removed without waiting for the next LateUpdate.
         if (any || wasActive)
             MetaManager.instance.CosmeticPlayerUpdateLocal(_synced: false);
     }
 
-    // Ensures IsUnequipAllRunning is always cleared even if ToggleCosmetic throws,
-    // so SetupCosmeticsLogic isn't permanently suppressed for the rest of the session.
+    // Ensures IsUnequipAllRunning is always cleared even if ToggleCosmetic throws, so SetupCosmeticsLogic isn't permanently suppressed for the session.
     [HarmonyFinalizer]
     private static Exception? Finalizer(Exception? __exception)
     {

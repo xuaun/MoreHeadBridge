@@ -4,18 +4,40 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
-// Vanilla buckets all Hat-type cosmetics together and picks one winner. Because worlds
-// share Hat type, this means hat OR world, never both. After vanilla runs, we strip its
-// single Hat pick and replace it with two independent 75% rolls (one per slot).
-// RandomizeBodyButton is unaffected (it explicitly denies Hat type).
+// Vanilla buckets all Hat-type cosmetics together and picks one winner; since worlds share Hat type, that means hat OR world, never both. After vanilla runs, we strip its single Hat pick and replace it with two independent 75% rolls (one per slot). Also, after any Randomize button, eligible bridge cosmetics receive the type colour vanilla picked for their slot — extending vanilla's non-bridge colouring to bridge cosmetics that opted in to tinting.
 internal static class WorldCosmeticsRandomize
 {
+    private static void SyncBridgeColorsAfterRandomize()
+    {
+        var meta = MetaManager.instance;
+        if (meta?.cosmeticEquipped == null || meta.colorsEquipped == null) return;
+
+        bool any = false;
+        foreach (int idx in meta.cosmeticEquipped)
+        {
+            if (idx < 0 || idx >= meta.cosmeticAssets.Count) continue;
+            var asset = meta.cosmeticAssets[idx];
+            if (!BridgeTintHelper.CanBridgeCosmeticReceivePaint(asset)) continue;
+
+            int typeIdx = (int)asset.type;
+            if (typeIdx < 0 || typeIdx >= meta.colorsEquipped.Length) continue;
+            int colorId = meta.colorsEquipped[typeIdx];
+            if (colorId < 0) continue;
+
+            PerCosmeticColors.SetNoSave(asset.assetId, colorId);
+            any = true;
+        }
+
+        if (!any) return;
+        PerCosmeticColors.Save();
+        meta.CosmeticPlayerUpdateLocal(_synced: false);
+    }
+
     private static void ApplyIndependentRolls()
     {
         var meta = MetaManager.instance;
         if (meta == null) return;
 
-        // World-specific hat-splitting: only needed when bridge-side worlds are loaded.
         if (HhhCosmeticLoader.WorldAssetIds.Count > 0)
         {
             var unlockedHats   = new List<int>();
@@ -34,11 +56,8 @@ internal static class WorldCosmeticsRandomize
                     unlockedHats.Add(idx);
             }
 
-            // Only override vanilla's combined Hat pick when there are bridge worlds to place.
             if (unlockedWorlds.Count > 0)
             {
-                // Remove whatever vanilla placed in the combined Hat bucket so we can
-                // replace it with properly split independent selections.
                 meta.cosmeticEquipped.RemoveAll(idx =>
                 {
                     if (idx < 0 || idx >= meta.cosmeticAssets.Count) return false;
@@ -46,11 +65,9 @@ internal static class WorldCosmeticsRandomize
                     return asset != null && asset.type == SemiFunc.CosmeticType.Hat;
                 });
 
-                // Independent 75% roll for a real hat.
                 if (unlockedHats.Count > 0 && Random.Range(0f, 1f) <= 0.75f)
                     meta.cosmeticEquipped.Add(unlockedHats[Random.Range(0, unlockedHats.Count)]);
 
-                // Independent 75% roll for a world cosmetic.
                 if (Random.Range(0f, 1f) <= 0.75f)
                     meta.cosmeticEquipped.Add(unlockedWorlds[Random.Range(0, unlockedWorlds.Count)]);
 
@@ -58,26 +75,34 @@ internal static class WorldCosmeticsRandomize
                 meta.CosmeticPlayerUpdateLocal(_synced: false);
             }
         }
-
-        // Refresh SELECTED so the newly-rolled result appears immediately.
-        var page = CosmeticsMenuState.ActivePage;
-        if (page != null
-            && page.selectedTab == MenuPageCosmetics.CosmeticPageTab.Cosmetics
-            && CosmeticsMenuState.IsSelected(page.selectedCategory))
-            page.RefreshScrollContent();
     }
 
     [HarmonyPatch(typeof(MenuPageCosmetics), "RandomizeAllButton")]
     internal static class RandomizeAllPostfix
     {
         [HarmonyPostfix]
-        private static void Postfix() => ApplyIndependentRolls();
+        private static void Postfix()
+        {
+            SyncBridgeColorsAfterRandomize();
+            ApplyIndependentRolls();
+        }
+    }
+
+    [HarmonyPatch(typeof(MenuPageCosmetics), "RandomizeBodyButton")]
+    internal static class RandomizeBodyPostfix
+    {
+        [HarmonyPostfix]
+        private static void Postfix() => SyncBridgeColorsAfterRandomize();
     }
 
     [HarmonyPatch(typeof(MenuPageCosmetics), "RandomizeCosmeticsButton")]
     internal static class RandomizeCosmeticsPostfix
     {
         [HarmonyPostfix]
-        private static void Postfix() => ApplyIndependentRolls();
+        private static void Postfix()
+        {
+            SyncBridgeColorsAfterRandomize();
+            ApplyIndependentRolls();
+        }
     }
 }

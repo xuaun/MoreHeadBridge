@@ -1,10 +1,5 @@
 // ============================================================================
-// Prevents hidden cosmetics from being picked by any of the three Randomize
-// buttons (All / Body / Cosmetics).
-//
-// Strategy: temporarily remove the indices of hidden assets from
-// MetaManager.cosmeticUnlocks before vanilla (and WorldCosmeticsRandomize)
-// read that list, then restore them in the Postfix.
+// Prevents hidden cosmetics from being picked by any of the three Randomize buttons (All / Body / Cosmetics): temporarily remove hidden assets' indices from MetaManager.cosmeticUnlocks before vanilla reads it, restoring in the Postfix.
 // ============================================================================
 
 using HarmonyLib;
@@ -39,9 +34,7 @@ internal static class RandomizeHiddenFilterPatch
         var meta = MetaManager.instance;
         if (meta == null) return;
 
-        // Iterate backwards so RemoveAt doesn't shift indices we haven't visited yet.
-        // Wrapped in try-catch: if anything throws mid-loop, restore whatever was
-        // already removed so cosmeticUnlocks is never left in a truncated state.
+        // Backwards so RemoveAt doesn't shift unvisited indices; on a mid-loop throw, restore what was already removed so cosmeticUnlocks is never left truncated.
         try
         {
             for (int i = meta.cosmeticUnlocks.Count - 1; i >= 0; i--)
@@ -59,17 +52,14 @@ internal static class RandomizeHiddenFilterPatch
         }
         catch (Exception ex)
         {
-            // Rollback any partial removals so the Postfix has nothing to restore
-            // and cosmeticUnlocks is left intact.
+            // Rollback any partial removals so the Postfix has nothing to restore and cosmeticUnlocks is left intact.
             meta.cosmeticUnlocks.AddRange(_removed);
             _removed.Clear();
-            Plugin.Logger.LogWarning($"RandomizeHiddenFilterPatch: failed to filter hidden cosmetics, skipping: {ex.Message}");
+            BceConsole.LogWarning($"RandomizeHiddenFilterPatch: failed to filter hidden cosmetics, skipping: {ex.Message}");
         }
     }
 
-    // Runs LAST — after vanilla Save() and after WorldCosmeticsRandomize.Postfix.
-    // Restores the hidden entries in memory then rewrites the save file so that
-    // hidden cosmetics are never lost from the unlock record.
+    // Runs LAST (after vanilla Save() and WorldCosmeticsRandomize.Postfix): restore in memory, then rewrite the save file so hidden cosmetics never drop from the unlock record.
     [HarmonyPostfix, HarmonyPriority(Priority.Last)]
     private static void Postfix()
     {
@@ -80,10 +70,8 @@ internal static class RandomizeHiddenFilterPatch
         {
             meta.cosmeticUnlocks.AddRange(_removed);
 
-            // Save without creating a new backup — the backup was already written
-            // by vanilla's own Save() call and represents the correct pre-randomize
-            // state. This call only corrects the main save file.
-            meta.Save(createBackup: false);
+            // Save without a new backup — vanilla's own Save() already wrote the correct pre-randomize backup; this only corrects the main save file.
+            meta.Save();
         }
 
         _removed.Clear();
@@ -99,9 +87,9 @@ internal static class RandomizeHiddenFilterPatch
                 meta.cosmeticUnlocks.AddRange(_removed);
             _removed.Clear();
 
-            Plugin.Logger.LogWarning(
+            BceConsole.LogWarning(
                 "RandomizeHiddenFilterPatch: vanilla threw during Randomize — " +
-                "hidden cosmetics restored to unlock record via Finalizer.");
+                "hidden cosmetics restored to unlock record via Finalizer");
         }
         return __exception;
     }

@@ -3,12 +3,7 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
-// Vanilla's Unequip-button (X) hover strips ALL Hat-type items from cosmeticEquippedPreview
-// (both real hats and worlds share subCategory == Hat). Prefix on CosmeticPreviewSet
-// intercepts just before the update fires and restores the "other side":
-//   In WORLD category    → restore real hats (world correctly disappears)
-//   In HEAD/Hat category → restore worlds (hat correctly disappears)
-//   In SELECTED/SEARCH   → detect from section name or synthetic subCategory
+// Vanilla's Unequip-button (X) hover strips ALL Hat-type items from cosmeticEquippedPreview (real hats and worlds share subCategory == Hat). A prefix on CosmeticPreviewSet restores the "other side": WORLD category → restore real hats; HEAD/Hat category → restore worlds; SELECTED/SEARCH → detect from section name or synthetic subCategory.
 [HarmonyPatch(typeof(MetaManager), "CosmeticPreviewSet")]
 internal static class WorldCosmeticsUnequipHoverPatch
 {
@@ -63,10 +58,7 @@ internal static class WorldCosmeticsUnequipHoverPatch
         bool inWorldCategory = WorldCosmeticsMenuState.IsWorldCategory(
             WorldCosmeticsMenuState.CurrentPage?.selectedCategory);
 
-        // In virtual categories (SELECTED/SEARCH), selectedCategory is not WORLD even when
-        // a world section's X is hovered. Detect from the section the hovered button belongs to:
-        //   - The injected World section uses the synthetic WorldSubCategory (999).
-        //   - As a fallback, its name is WorldSectionName.
+        // In virtual categories (SELECTED/SEARCH) selectedCategory isn't WORLD even when a world section's X is hovered, so detect from the hovered button's section: the injected World section uses the synthetic WorldSubCategory (999), falling back to its name WorldSectionName.
         bool hoveringWorld = false;
         if (!inWorldCategory && hoveredSection != null)
         {

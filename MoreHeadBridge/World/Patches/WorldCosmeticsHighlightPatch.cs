@@ -4,9 +4,7 @@ using System.Collections.Generic;
 
 namespace MoreHeadBridge;
 
-// Vanilla UpdateHighlight counts all Hat-type assets as one bucket.
-// Because worlds share Hat type, both category buttons and section headers
-// would show hat+world combined. These two patches split the count correctly.
+// Vanilla UpdateHighlight counts all Hat-type assets as one bucket; since worlds share Hat type, category buttons and section headers would show hat+world combined. These two patches split the count correctly.
 
 [HarmonyPatch(typeof(MenuElementButtonCosmeticCategory), "UpdateHighlight")]
 internal static class WorldCosmeticsHighlightPatch
@@ -44,8 +42,18 @@ internal static class WorldCosmeticsHighlightPatch
         }
         else if (__instance.buttonType == MenuElementButtonCosmeticCategory.ButtonType.SubCategory)
         {
-            if (__instance.subCategory != SemiFunc.CosmeticType.Hat) return;
             if (__instance.highlightObj == null) return;
+
+            // Virtual categories never show new-unlock counts on any subcategory type. Runs before the Hat-only branch so all types are covered, complementing VirtualCategoryHighlightPatch regardless of postfix order.
+            var page = __instance.GetComponentInParent<MenuPageCosmetics>();
+            if (CosmeticsMenuState.IsVirtual(page?.selectedCategory))
+            {
+                if (__instance.highlightObj.text != null)
+                    __instance.highlightObj.text.text = "0";
+                return;
+            }
+
+            if (__instance.subCategory != SemiFunc.CosmeticType.Hat) return;
 
             count = CountNewCosmetics(asset =>
                 asset.type == __instance.subCategory &&
@@ -83,16 +91,13 @@ internal static class WorldCosmeticsHighlightPatch
 
     private static void SetHighlightCount(MenuElementCosmeticHighlight highlight, int count)
     {
-        // Write count as vanilla does. MenuElementCosmeticHighlight.Update() handles
-        // badge visibility and text margin — never use SetActive(false), which would
-        // prevent the margin reset and leave the button text permanently left-aligned.
+        // Write count as vanilla does; MenuElementCosmeticHighlight.Update() handles badge visibility and text margin.
         if (highlight.text != null)
             highlight.text.text = count.ToString();
     }
 }
 
-// Vanilla UpdateHighlight on sections also counts hat+world combined.
-// This postfix recalculates with the correct split and syncs the sticky header.
+// Vanilla UpdateHighlight on sections also counts hat+world combined; this postfix recalculates with the correct split and syncs the sticky header.
 [HarmonyPatch(typeof(MenuElementCosmeticSection), "UpdateHighlight")]
 internal static class WorldCosmeticsSectionHighlightPatch
 {
@@ -102,9 +107,20 @@ internal static class WorldCosmeticsSectionHighlightPatch
         if (__instance == null) return;
         if (MetaManager.instance == null) return;
         if (HhhCosmeticLoader.WorldAssetIds.Count == 0) return;
-        // Only Hat-type sections need correction — world uses Hat internally.
         if (__instance.subCategory != SemiFunc.CosmeticType.Hat) return;
         if (__instance.highlightObj == null) return;
+
+        // Virtual categories (SEARCH, SELECTED, FAV, HIDE) never show new-unlock counts.
+        if (CosmeticsMenuState.IsVirtual(__instance.menuPageCosmetics?.selectedCategory))
+        {
+            if (__instance.highlightObj.text != null)
+                __instance.highlightObj.text.text = "0";
+            if (__instance.menuPageCosmetics != null &&
+                __instance.menuPageCosmetics.selectedSubCategory == __instance.subCategory &&
+                __instance.menuPageCosmetics.stickyHeader?.highlightObj?.text != null)
+                __instance.menuPageCosmetics.stickyHeader.highlightObj.text.text = "0";
+            return;
+        }
 
         bool inWorldCategory = WorldCosmeticsMenuState.IsWorldCategory(
             __instance.menuPageCosmetics?.selectedCategory);

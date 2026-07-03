@@ -15,9 +15,9 @@ internal static class WorldCosmeticsMenuStartPatch
     {
         if (__instance == null) return;
         if (HhhCosmeticLoader.WorldAssetIds.Count == 0) return;
-        // Guard against the Presets/Outfits tab — on that page selectedCategory can be
-        // null during Start(), causing NPEs in UpdateColorButton.
         if (__instance.selectedTab != MenuPageCosmetics.CosmeticPageTab.Cosmetics) return;
+        // A takeover companion failed to apply — no WORLD tab (its content builder may be missing).
+        if (BridgePatcher.MenuTakeoverBroken) return;
 
         WorldCosmeticsMenuState.CurrentPage = __instance;
 
@@ -28,7 +28,7 @@ internal static class WorldCosmeticsMenuStartPatch
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogWarning($"WORLD menu injection failed: {ex.Message}");
+            BceConsole.LogWarning($"WORLD menu injection failed: {ex.Message}");
         }
     }
 

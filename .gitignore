@@ -1,12 +1,12 @@
 # C# and .NET specific ignores
-## 忽略构建输出
+## Build outputs
 [Bb]in/
 [Oo]bj/
 [Tt]emp/
 [Ll]ogs/
 [Pp]ackages/
 
-## 忽略IDE和编辑器文件
+## IDE and editor files
 .vs/
 .vscode/
 .idea/
@@ -17,7 +17,7 @@
 *.sln.docstates
 *.sln.DotSettings.user
 
-## 忽略构建结果
+## Build artifacts
 *.dll
 *.exe
 *.pdb
@@ -25,7 +25,7 @@
 *.cache
 *.tmp
 
-# Unity specific ignores (如果项目中包含Unity资源)
+# Unity specific ignores (if applicable)
 Library/
 Temp/
 Obj/
@@ -33,7 +33,7 @@ Build/
 Builds/
 UserSettings/
 
-# 其他忽略文件
+# Other ignored files
 *.log
 *.vspscc
 *.vssscc
@@ -43,16 +43,16 @@ UserSettings/
 *.scc
 *.swp
 
-# 忽略NuGet包文件
+# NuGet packages
 *.nupkg
-# 忽略NuGet包的文件夹
+# NuGet packages directory
 packages/
-# 忽略项目重新生成的锁文件
+# Generated lock files
 project.lock.json
 project.fragment.lock.json
 artifacts/
 
-# 忽略VS Launch配置
+# VS launch settings
 .launchSettings.json
 
 # Rider
@@ -64,10 +64,26 @@ artifacts/
 **/bin/
 **/obj/
 
-# 针对该项目特定的忽略
+# Project-specific ignores
+
+# Local dev files not shipped with the mod (manual test plans, scratch notes, etc.)
+/.local/
+
+# Local analysis/report scratch files (kept out of the repo)
+/ANALISE_*.txt
+/RELATORIO_*.txt
+/last_changes.txt
+# npm lock file — this is a C# project, not a Node one
+package-lock.json
+
+# Python cache files
+__pycache__/
 
 # Local build paths — machine-specific, not committed
 Directory.Build.props
 
 # C# cache files
 *.lscache
+
+# Local assistant notes
+CLAUDE.md

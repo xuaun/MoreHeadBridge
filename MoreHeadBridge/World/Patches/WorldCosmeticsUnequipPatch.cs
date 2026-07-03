@@ -3,14 +3,7 @@ using System.Collections.Generic;
 
 namespace MoreHeadBridge;
 
-// Vanilla's CosmeticUnequip sweeps ALL Hat-type entries from cosmeticEquipped when
-// any one Hat-type cosmetic is unequipped (worlds share Hat type).
-//
-// Fix: Prefix backs up every Hat-type entry that should survive:
-//   - Always: the "opposite side" (worlds when unequipping hat, hats when unequipping world).
-//   - With AllowMultipleCosmetics on: also same-side extras, so only the specific
-//     cosmetic being unequipped is removed, not every hat/world at once.
-// Postfix restores any entries vanilla swept as collateral.
+// Vanilla's CosmeticUnequip sweeps ALL Hat-type entries from cosmeticEquipped when any one is unequipped (worlds share Hat type). Fix: the prefix backs up every Hat-type entry that should survive — always the "opposite side" (worlds when unequipping a hat, hats when unequipping a world), plus same-side extras when AllowMultipleCosmetics is on (so only the specific cosmetic is removed). Postfix restores entries vanilla swept as collateral.
 [HarmonyPatch(typeof(MetaManager), nameof(MetaManager.CosmeticUnequip))]
 internal static class WorldCosmeticsUnequipPatch
 {
@@ -52,7 +45,6 @@ internal static class WorldCosmeticsUnequipPatch
             if (!__instance.cosmeticEquipped.Contains(idx))
                 __instance.cosmeticEquipped.Add(idx);
         }
-        // Visual refresh happens automatically on the next LateUpdate via
-        // MenuPageCosmetics → CosmeticPlayerUpdateLocal → SetupCosmeticsLogic.
+        // Visual refresh happens automatically next LateUpdate via MenuPageCosmetics → CosmeticPlayerUpdateLocal → SetupCosmeticsLogic.
     }
 }

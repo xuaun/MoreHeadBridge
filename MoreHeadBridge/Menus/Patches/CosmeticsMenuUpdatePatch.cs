@@ -1,6 +1,4 @@
-// Postfix on MenuPageCosmetics.Update.
-// While the SEARCH tab is active, keeps the TMP_InputField focused and
-// suppresses game inputs that would otherwise leak through (A/D avatar rotation, B mute).
+// Postfix on MenuPageCosmetics.Update: while SEARCH is active, keeps the input field focused and suppresses leaking game inputs (A/D rotation, B mute).
 
 using HarmonyLib;
 using System.Collections.Generic;
@@ -23,6 +21,19 @@ internal static class CosmeticsMenuUpdatePatch
     [HarmonyPostfix]
     private static void Postfix(MenuPageCosmetics __instance)
     {
+        // Close our Tools dropdown on an outside click — vanilla's own outside-mouse-down check doesn't include our popup.
+        var toolsPopup = CosmeticsMenuStartPatch._toolsPopupRef;
+        if (toolsPopup != null && toolsPopup.dropdownActive
+            && Input.GetMouseButtonDown(0) && !ToolsPopupHovered(toolsPopup))
+        {
+            toolsPopup.SetState(_state: false);
+        }
+
+        // Stops avatar eye-tracking during batch generation — same 0.1 s look-at-disable pattern vanilla uses for the randomize popup.
+        if (BatchIconGenerator.IsGenerating)
+            __instance.menuPage?.playerAvatarMenu?.playerVisuals?.playerEyes
+                ?.OverrideDisableMenuLookAt();
+
         if (!CosmeticsMenuState.SearchMode) return;
         if (CosmeticsMenuState.ActivePage != __instance) return;
 
@@ -71,5 +82,14 @@ internal static class CosmeticsMenuUpdatePatch
 
         if (changed)
             __instance.RefreshScrollContent();
+    }
+
+    // True when the cursor is over the Tools toggle button or any of its dropdown buttons.
+    private static bool ToolsPopupHovered(MenuElementCosmeticButtonPopup popup)
+    {
+        if (popup.toggleButton != null && popup.toggleButton.hovering) return true;
+        foreach (var b in popup.dropdownButtons)
+            if (b != null && b.hovering) return true;
+        return false;
     }
 }
