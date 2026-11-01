@@ -59,7 +59,7 @@ internal static class MiniSemibotCosmetic
             // Icon: the captured preset-style photo when available, else the drawn placeholder until MiniSemibotIconCapture overwrites asset.icon on the next menu open.
             asset.icon = IconCapture.HasCache(asset)
                 ? SemiFunc.LoadSpriteFromFile(IconCapture.CachePathFor(asset))
-                : MiniSemibotIcon.Create();   // honoured by GetIconPatch (asset.icon shortcut)
+                : MiniSemibotIcon.Create();   // asset.icon is used as-is by the menu buttons
             Asset = asset;
 
             Cosmetics.RegisterCosmetic(asset);

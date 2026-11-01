@@ -31,7 +31,7 @@ internal static class ColorPageDragRotatePatch
             return;
         }
 
-        if (SemiFunc.InputHold(InputKey.Grab))
+        if (SemiFunc.InputHold(InputKey.UIClick))
         {
             float mouseX = Input.mousePosition.x;
             if (!_grabActive) { _grabActive = true; _grabOriginX = mouseX; }

@@ -310,5 +310,5 @@ If you like this one, I make other cosmetic packs and tools for R.E.P.O. — and
 - **Masaicker & YurisCat** — [MoreHead](https://thunderstore.io/c/repo/p/YMC_MHZ/MoreHead/) (original mod inspiration)
 - **Maygik** — [MoreHeadUtilities](https://thunderstore.io/c/repo/p/Maygik/MoreHeadUtilities/)
 - **Zehs** — [REPOLib](https://thunderstore.io/c/repo/p/Zehs/REPOLib/)
-- **nickklmao** — [MenuLib](https://thunderstore.io/c/repo/p/nickklmao/MenuLib/) (Cosmetic Customizer UI)
+- **nickklmao & REPOModding** — [MenuLib](https://thunderstore.io/c/repo/p/REPOModding/MenuLib/) (Cosmetic Customizer UI)
 - **innominata** — [BepInEx Console Extensions](https://thunderstore.io/c/dyson-sphere-program/p/innominata/BepInEx_Console_Extensions/) (optional mod)

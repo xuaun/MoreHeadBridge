@@ -16,7 +16,7 @@ internal static class IconCapture
 {
     private const int OutSize = 128;
 
-    // Private cache dir: %persistentDataPath%\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\. REPOLib's MetaManagerPatch wipes Cache\Icons\Cosmetics\ of non-vanilla PNGs, but our folder is a SIBLING under CosmeticsModded\ so it's untouched; GetIconPatch loads from here directly. Legacy path (< fix/folder-paths) %persistentDataPath%\MoreHeadBridge_Icons\ is migrated automatically on first run.
+    // Private cache dir: %persistentDataPath%\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\. REPOLib's MetaManagerPatch wipes Cache\Icons\Cosmetics\ of non-vanilla PNGs, but our folder is a SIBLING under CosmeticsModded\ so it's untouched; BridgeIconResolver loads from here directly. Legacy path (< fix/folder-paths) %persistentDataPath%\MoreHeadBridge_Icons\ is migrated automatically on first run.
     private static string? _cacheDir;
     internal static string CacheDir
     {
@@ -90,7 +90,7 @@ internal static class IconCapture
         return name.Length == 0 ? "_unnamed" : name;
     }
 
-    // In-memory set of known-cached paths — GetIcon fires for every visible button during RefreshScrollContent, so no File.Exists per call. Seeded lazily, updated on each capture write.
+    // In-memory set of known-cached paths — checked for every button during RefreshScrollContent, so no File.Exists per call. Seeded lazily, updated on each capture write.
     private static HashSet<string>? _knownCached;
 
     private static void EnsureCacheSeeded()
@@ -132,7 +132,7 @@ internal static class IconCapture
     }
 
     /// Deletes the cached PNG for the given asset from disk and from the in-memory
-    /// set, then clears the Sprite so GetIconPatch re-evaluates on the next call.
+    /// set, then clears the Sprite so BridgeIconResolver rebuilds it on the next redraw.
     internal static void DeleteCache(CosmeticAsset asset)
     {
         EnsureCacheSeeded();
@@ -238,7 +238,7 @@ internal static class IconCapture
             File.WriteAllBytes(cachePath, scaled.EncodeToPNG());
             MarkCached(cachePath);
 
-            // RefreshVisibleButtons below triggers UpdateIcon → GetIconPatch, which recreates the icon from the freshly-written PNG.
+            // RefreshVisibleButtons below triggers UpdateIcon → BridgeIconResolver, which recreates the icon from the freshly-written PNG.
             if (asset.icon != null)
             {
                 UnityEngine.Object.Destroy(asset.icon);

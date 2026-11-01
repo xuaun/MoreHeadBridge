@@ -78,8 +78,14 @@ public partial class Plugin : BaseUnityPlugin
         SetupCosmeticsModdedRpcPatch.TryApply(_harmony);
         REPOLibRpcOrderPatch.TryApply(_harmony);
         CustomGrabColorCompat.TryApply(_harmony);
+        MoreHeadScrollBoxCompat.TryApply(_harmony);
         if (MenuLibAvailable)
+        {
             HideMoreHeadButtonCreatePatch.TryApply(_harmony);
+            MenuLibLabelFixPatch.TryApply(_harmony);
+            MenuLibPopupPatch.TryApply(_harmony);
+        }
+        PerfProbe.TryApply(_harmony);   // TEMP-TEST
     }
 
     // Subscribes the live-apply reactions for every config toggle that takes effect without a restart.

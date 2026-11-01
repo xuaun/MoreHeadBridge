@@ -37,7 +37,7 @@ internal static class HhhCosmeticLoader
         return null;
     }
 
-    // assetId → main texture from the prefab's materials, for GetIconPatch to render a real icon instead of the placeholder.
+    // assetId → main texture from the prefab's materials, for BridgeIconResolver to render a real icon instead of the placeholder.
     internal static readonly Dictionary<string, Texture2D> BridgeIconTextures = new();
 
     // Unified tag → (vanilla CosmeticType, OverrideCosmeticType) map. Worlds use Hat as vanilla type (keeps type-indexed structures in-bounds); WorldAssetIds drives world logic.

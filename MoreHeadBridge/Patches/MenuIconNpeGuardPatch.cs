@@ -3,7 +3,7 @@ using System;
 
 namespace MoreHeadBridge;
 
-// UpdateIcon warns "No IconMaker found" then NPEs (no null-check after the warning). .hhh prefabs have no SemiIconMaker — blank icon button is acceptable; the finalizer suppresses just this crash.
+// Swallows UpdateIcon NREs on bridge cosmetics — a blank icon button is acceptable.
 [HarmonyPatch(typeof(MenuElementCosmeticButton), "UpdateIcon")]
 internal static class MenuIconNpeGuardPatch
 {

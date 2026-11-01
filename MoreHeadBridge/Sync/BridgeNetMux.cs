@@ -115,6 +115,27 @@ internal static class BridgeNetMux
         SendBufferedSnapshot(json);
     }
 
+    // Hash of every channel's local payload; changes whenever the local look changes. Throttled — the expression wheel reads it every frame while open.
+    private static int _localStateHash;
+    private static float _localStateHashNext = -1f;
+
+    internal static int LocalStateHash()
+    {
+        if (UnityEngine.Time.unscaledTime < _localStateHashNext) return _localStateHash;
+        _localStateHashNext = UnityEngine.Time.unscaledTime + 0.5f;
+        try
+        {
+            int hash = 17;
+            foreach (var ch in Channels) hash = hash * 31 + (ch.Build()?.GetHashCode() ?? 0);
+            _localStateHash = hash;
+        }
+        catch (System.Exception ex)
+        {
+            BridgeLog.Trace($"LocalStateHash failed: {ex.Message}");
+        }
+        return _localStateHash;
+    }
+
     // Removes THIS sender's buffered snapshot from the room cache. Non-Hashtable content matches by code+sender only, so it clears server-side without delivering anything to clients.
     private static void ClearMyBufferedSnapshot()
         => PhotonNetwork.RaiseEvent(EventCode, "",

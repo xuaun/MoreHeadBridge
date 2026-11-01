@@ -159,7 +159,7 @@ internal static class BatchIconGenerator
                 if (MetaManager.instance == null) break;
 
                 int idx = MetaManager.instance.cosmeticAssets.IndexOf(asset);
-                if (idx < 0) { _progressFailed++; continue; }
+                if (idx < 0) { _progressFailed++; LogFailedIcon(asset); continue; }
 
                 // Build the preview list (never touches cosmeticEquipped). HideClothesWhileGenerating: true → only the target (clean icons); false → full loadout + target.
                 MetaManager.instance.cosmeticEquippedPreview.Clear();
@@ -229,8 +229,13 @@ internal static class BatchIconGenerator
 
                 PartShrinkerBridge.SetAllHiddenPartsEnabled(true);
 
-                if (captured) _progressDone++;
-                else _progressFailed++;
+                // TryCapture also returns false when the PNG already exists: another path wrote it during the batch, or a second asset shares the file name.
+                if (captured || IconCapture.HasCache(asset)) _progressDone++;
+                else
+                {
+                    _progressFailed++;
+                    LogFailedIcon(asset);
+                }
 
                 {
                     int done  = _progressDone + _progressFailed;
@@ -311,6 +316,15 @@ internal static class BatchIconGenerator
             OnBatchCompleted = null;
             cb?.Invoke();
         }
+    }
+
+    private static void LogFailedIcon(CosmeticAsset asset)
+    {
+        var type = CustomizerStore.GetEffectiveType(asset);
+        string category = type == OverrideCosmeticType.World
+            ? "WORLD"
+            : $"{CustomizerStore.GetMainForType(type).ToString().ToUpperInvariant()} / {type}";
+        BceConsole.LogWarning($"GenerateAllIcons: no icon for '{(string.IsNullOrEmpty(asset.assetName) ? asset.name : asset.assetName)}' ({category})");
     }
 
     // ── Popup bridge (MenuLib soft dep) ────────────────────────────────────────

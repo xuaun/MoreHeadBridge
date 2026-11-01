@@ -14,6 +14,7 @@ internal static class ToolsButtonOnSelectPatch
         if (!CosmeticsMenuStartPatch._buttonActions.TryGetValue(__instance, out var action))
             return true;
 
+        SemiFunc.GamepadRumbleThockBigButton();   // part of the OnSelect this prefix skips
         try { action?.Invoke(); }
         catch (System.Exception ex)
         {

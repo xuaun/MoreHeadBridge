@@ -226,6 +226,27 @@ internal sealed class BridgeSlotSelectorRow : MonoBehaviour
             _arrowRight.SetActive(showRight);
             if (showRight) Place(_arrowRight, ref x, ArrowWidth);
         }
+
+        WireNavigation();
+    }
+
+    private void WireNavigation()
+    {
+        if (menuPageColor == null) return;
+
+        var row = new List<MenuSelectableElement>();
+        void Add(GameObject? go)
+        {
+            if (go == null || !go.activeSelf) return;
+            var button = go.GetComponent<MenuButton>();
+            if (button != null && button.menuSelectableElement != null) row.Add(button.menuSelectableElement);
+        }
+
+        Add(_arrowLeft);
+        foreach (var (go, _) in _slotButtons) Add(go);
+        Add(_arrowRight);
+
+        ColorPageNav.LinkSlotRow(menuPageColor, row);
     }
 
     // Original material colour of each flat slot, built once per page session (constant while the picker is open) so each slot button previews its own original colour.

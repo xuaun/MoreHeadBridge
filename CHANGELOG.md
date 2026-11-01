@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.1.0
+
+> ⚠ **Requires R.E.P.O. v0.5.0 (Sunstone Update) and REPOLib 4.3.0.** This version no longer works on older game versions.
+
+- Updated for the new game version: cosmetic icons work with the game's new icon system
+- Cosmetics menu and color page can be navigated with a controller or keyboard, including the SEARCH, SELECTED, FAV, HIDE and WORLD tabs, the Tools button, and the M / C / A color buttons and slot selector
+- Expression wheel portraits now update when you change per-cosmetic colors, overrides, or the Mini-Semibot
+- Typing in SEARCH no longer rotates the avatar or moves the menu selection
+- New controller shortcuts on the selected cosmetic: open the customizer, favorite and hide (by default the top face button, the left face button and the right trigger). Choose others, or turn them off, with `CustomizerGamepadButton`, `FavoriteGamepadButton` and `HideGamepadButton`
+- New options to choose which held key favorites, hides or opens the customizer: `FavoriteClickModifier`, `HideClickModifier` and `CustomizerClickModifier` (Ctrl, Alt or Shift). Each action needs a different key or button; on a conflict, all three go back to the defaults
+- Menu hints now show the game's own icons for your controller and the mouse, and follow the options above
+- The bridge's popups can be navigated with a controller or keyboard
+- The SEARCH field can be reached with a controller: confirm opens Steam's gamepad keyboard when it's available, otherwise it focuses the field for a physical keyboard
+- Fixed the Mini-Semibot in the expression preview keeping old custom colors after editing them in-game
+- Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
+- The icon batch generator now names each cosmetic it couldn't capture, with its category
+- Fixed an error when the game generated icons for cosmetics from other mods
+- If MoreHead isn't updated yet, its broken scroll patch is turned off so menus can scroll again
+
 ## v3.0.1
 
 - Fixed a bug where the ballon from my MonsterCosmetics mod in the mini-semibot ingame would not apply the correct color.

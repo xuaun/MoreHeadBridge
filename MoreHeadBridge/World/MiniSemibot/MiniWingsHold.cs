@@ -1,17 +1,11 @@
 // Mirrors the wearer's tumble-wings (flight upgrade / zero-gravity / pink Heart Hugger) onto the mini. The menu-avatar clone has no ItemUpgradePlayerTumbleWingsLogic, so clone the wearer's wing visual once and drive it: body-relative pose mirror (wings ARE body-anchored, unlike the camera-anchored flashlight, so correct local AND remote), flap copied from the wearer's wing bones, and base/fresnel colour followed so the pink variant comes through. Under the "State Effects" toggle.
 
-using System.Reflection;
-using HarmonyLib;
 using UnityEngine;
 
 namespace MoreHeadBridge;
 
 internal sealed class MiniWingsHold : MonoBehaviour
 {
-    // upgradeTumbleWingsVisualsActive is internal on PlayerAvatar → reflect once.
-    private static readonly FieldInfo? VisualsActiveField =
-        AccessTools.Field(typeof(PlayerAvatar), "upgradeTumbleWingsVisualsActive");
-
     private static readonly int BaseColorId    = Shader.PropertyToID("_BaseColor");
     private static readonly int FresnelColorId = Shader.PropertyToID("_FresnelColor");
 
@@ -31,8 +25,7 @@ internal sealed class MiniWingsHold : MonoBehaviour
         var wv = Follow != null ? Follow.WearerVisuals : null;
         var mv = Follow != null ? Follow.MiniVisuals : null;
 
-        bool visualsActive = WearerAvatar != null && VisualsActiveField != null
-            && VisualsActiveField.GetValue(WearerAvatar) is true;
+        bool visualsActive = WearerAvatar != null && WearerAvatar.upgradeTumbleWingsVisualsActive;
 
         bool want = MiniSemibotVisualPrefs.StateEffects
                     && (Follow == null || !MiniSemibotSpawner.IsMenuOrPreviewWearer(Follow.WearerVisuals))

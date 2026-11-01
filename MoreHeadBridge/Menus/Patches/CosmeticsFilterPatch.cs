@@ -237,15 +237,13 @@ internal static class CosmeticsFilterPatch
 
         if (isVirtual && totalVisible == 0)
         {
-            string msg;
-            if (isFav)       msg = "Add a favorite with Ctrl+click :)";
-            else if (isHide) msg = "Hide cosmetics with Alt+click :P";
+            if (isFav)         CosmeticsScrollBuilder.ShowEmptyStateFor(CosmeticClickAction.Favorite);
+            else if (isHide)   CosmeticsScrollBuilder.ShowEmptyStateFor(CosmeticClickAction.Hide);
             else if (isSearch)
-                msg = string.IsNullOrWhiteSpace(CosmeticsMenuState.SearchText)
+                CosmeticsScrollBuilder.ShowEmptyState(string.IsNullOrWhiteSpace(CosmeticsMenuState.SearchText)
                     ? "Type to search cosmetics here :)"
-                    : "No cosmetics found :'(";
-            else             msg = "Equip a cosmetic to see it here :3";
-            CosmeticsScrollBuilder.ShowEmptyState(msg);
+                    : "No cosmetics found :'(");
+            else               CosmeticsScrollBuilder.ShowEmptyState("Equip a cosmetic to see it here :3");
         }
         else
             CosmeticsScrollBuilder.HideEmptyState();

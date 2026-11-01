@@ -108,7 +108,8 @@ internal static class CosmeticVariantPopup
             // Icon.
             if (mecb.iconImage != null)
             {
-                var sprite = member.Asset != null ? member.Asset.GetIcon() : null;
+                var sprite = BridgeIconResolver.Ensure(member.Asset)
+                             ?? (member.Asset != null ? member.Asset.icon ?? member.Asset.GenerateIcon() : null);
                 if (sprite != null)
                 {
                     mecb.iconImage.sprite = sprite;
