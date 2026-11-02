@@ -692,6 +692,7 @@ internal static class CosmeticsMenuStartPatch
     {
         var meta = MetaManager.instance;
         if (meta == null) return false;
+        if (RenderedIconCache.HasAny()) return true;
         foreach (var id in HhhCosmeticLoader.RegisteredAssetIds)
         {
             // The Mini-Semibot photo survives Clear All Icons (it can't be re-rendered) — skip it here too, or its cache keeps the button enabled right after a clear.

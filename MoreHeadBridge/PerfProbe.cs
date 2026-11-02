@@ -30,6 +30,8 @@ internal static class PerfProbe
     private static string? _window;
     private static double _windowStart, _lastSlow, _lastFrame, _worst;
     private static int _frames, _over33, _over100;
+    private static int _iconWaits;
+    private static double _iconWaitTotal, _iconWaitMax;
 
     private static readonly (string type, string method)[] GameTargets =
     {
@@ -50,7 +52,15 @@ internal static class PerfProbe
         ("MenuScrollBox", "RecalculateScrollHeight"),
         ("CosmeticAsset", "GenerateIconAsync"),
         ("SemiIconMaker", "CreateIconReadback"),
+        ("SemiIconMaker+IconReadback", "CreateSprite"),
         ("SemiFunc", "LoadSpriteFromFile"),
+        ("SemiFunc", "SpriteFromBytes"),
+        ("MoreHeadBridge.RenderedIconCache", "SpriteFromPixels"),
+        ("MoreHeadBridge.RenderedIconCache", "SpriteFromPng"),
+        ("MenuButton", "Awake"),
+        ("MenuSelectableElement", "Awake"),
+        ("MenuElementCosmeticSection", "Awake"),
+        ("MenuElementCosmeticSection", "Start"),
         ("PlayerAvatarVisuals", "Start"),
         ("MoreHeadBridge.BridgeIconResolver", "Ensure"),
         ("MoreHeadBridge.CosmeticsMenuNav", "WireSections"),
@@ -182,15 +192,17 @@ internal static class PerfProbe
 
     private static void Begin(string label)
     {
-        double now = Time.realtimeSinceStartupAsDouble;
-        if (_window != null) Flush(now);
+        if (_window != null) Flush(Time.realtimeSinceStartupAsDouble);
 
+        double now = Time.realtimeSinceStartupAsDouble;
         Stats.Clear();
         _window = label;
         _windowStart = now;
         _lastSlow = now;
         _worst = 0;
         _frames = _over33 = _over100 = 0;
+        _iconWaits = 0;
+        _iconWaitTotal = _iconWaitMax = 0;
     }
 
     private static void Flush(double now)
@@ -203,6 +215,8 @@ internal static class PerfProbe
         text.Append(System.FormattableString.Invariant($" | {_frames} frames, avg {(_frames > 0 ? duration * 1000.0 / _frames : 0):F1} ms, worst {_worst * 1000.0:F1} ms, >33ms {_over33}, >100ms {_over100}"));
         if (MenuManager.instance != null)
             text.Append($" | active buttons {MenuManager.instance.allMenuButtons.Count}");
+        if (_iconWaits > 0)
+            text.Append(System.FormattableString.Invariant($" | on-screen icon wait {_iconWaits}x, avg {_iconWaitTotal * 1000.0 / _iconWaits:F0} ms, max {_iconWaitMax * 1000.0:F0} ms"));
 
         foreach (var pair in Stats.OrderByDescending(p => p.Value.Ticks).Take(TopMethods))
         {
@@ -215,5 +229,12 @@ internal static class PerfProbe
             Plugin.Logger.LogInfo(text.ToString());
 
         _window = null;
+    }
+
+    internal static void NoteIconWait(double seconds)
+    {
+        _iconWaits++;
+        _iconWaitTotal += seconds;
+        if (seconds > _iconWaitMax) _iconWaitMax = seconds;
     }
 }

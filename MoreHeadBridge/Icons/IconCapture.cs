@@ -199,7 +199,8 @@ internal static class IconCapture
 
         // Isolated render (SemiIconMaker-style) instead of cropping the live avatar; per-cosmetic override falls back to UseIsolatedIconRender. Bridge only (.hhh prefab is a self-contained mesh) — never Mini-Semibot, whose placeholder prefab has no mesh.
         if (BridgeIds.IsBridgeAsset(asset) && asset.assetId != MiniSemibotCosmetic.AssetId
-            && CustomizerStore.GetEffectiveIsolatedIcon(asset.assetId))
+            && CustomizerStore.GetEffectiveIsolatedIcon(asset.assetId)
+            && !IsolatedIconRenderer.HasNoMesh(asset))
             return TryCaptureIsolated(asset);
 
         Texture2D? full = null;

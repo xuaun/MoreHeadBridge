@@ -1,4 +1,4 @@
-// One-shot deletion of cached bridge icon PNGs ([Icons] DeleteIconCache + optional name filter). Runs after LoadAll (needs RegisteredAssetIds); removed icons fall back to the normal chain and re-capture on hover.
+// One-shot deletion of cached bridge icon PNGs ([Icons] DeleteIconCache + optional name filter). Runs after LoadAll (needs RegisteredAssetIds); removed icons fall back to the normal chain and re-capture on hover. Without a filter it also deletes the saved icons of other cosmetic mods, which have no name to filter by.
 
 using System;
 using System.Collections.Generic;
@@ -15,20 +15,22 @@ internal static class IconCacheCleaner
 
         try
         {
-            string dir = IconCapture.CacheDir;
-            if (!Directory.Exists(dir))
-            {
-                BceConsole.LogInfo("DeleteIconCache: no cache directory, nothing to do");
-                ResetFlag();
-                return;
-            }
-
             string filterRaw = Plugin.DeleteIconsMatching.Value ?? "";
             string[] filters = filterRaw
                 .Split(',')
                 .Select(s => s.Trim().ToLowerInvariant())
                 .Where(s => s.Length > 0)
                 .ToArray();
+
+            int modIcons = filters.Length == 0 ? RenderedIconCache.Clear() : 0;
+
+            string dir = IconCapture.CacheDir;
+            if (!Directory.Exists(dir))
+            {
+                BceConsole.LogInfo($"DeleteIconCache: no bridge icons to delete, removed {modIcons} icon(s) of other mods");
+                ResetFlag();
+                return;
+            }
 
             var bridgeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string id in HhhCosmeticLoader.RegisteredAssetIds)
@@ -70,7 +72,7 @@ internal static class IconCacheCleaner
             }
 
             BceConsole.LogInfo(
-                $"DeleteIconCache: removed {deleted} bridge icon(s), kept {kept}. " +
+                $"DeleteIconCache: removed {deleted} bridge icon(s) and {modIcons} icon(s) of other mods, kept {kept}. " +
                 $"Filter: {(filters.Length == 0 ? "(all bridge icons)" : string.Join(",", filters))}");
 
             // Sync the in-memory cache with the on-disk deletions — else HasCache() stays true and the old sprite stays loaded until a game restart.

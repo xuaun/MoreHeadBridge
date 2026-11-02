@@ -76,7 +76,7 @@ Equip sync itself is vanilla + REPOLib RPCs; `REPOLibRpcOrderPatch` and
 - `PerCosmeticColors.json` — unified v2 colour store (all six maps, one `Save()`); v1 sibling files
   are migrated on first load. `PresetColors.json` stays separate.
 - `BridgeBlacklist`, favourites/hidden, `AutoUnlockedModded.json`.
-- Icon PNG cache lives outside config: `AppData/.../Cache/Icons/CosmeticsModded/`.
+- Icon PNG cache lives outside config: `AppData/.../Cache/Icons/CosmeticsModded/`. Icons rendered for other cosmetic mods are saved per profile in `BepInEx/cache/MoreHeadBridge/RenderedIcons/`, emptied when the profile's `.repobundle` files or the game version change.
 
 `PerCosmeticColors` stores `-1` (`OriginalColorSentinel`) inside the palette-index map meaning
 "restore original" — never feed a stored index to `MetaManager.colors` without checking it.

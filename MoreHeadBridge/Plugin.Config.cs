@@ -677,6 +677,9 @@ public partial class Plugin
             description: "ONE-SHOT trigger. When TRUE on launch, delete cached bridge icon PNGs from:\n" +
                           "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Use DeleteIconsMatching to filter which ones to delete.\n" +
+                          "Without a filter, also deletes the saved icons of other cosmetic mods from:\n" +
+                          "  BepInEx\\cache\\MoreHeadBridge\\RenderedIcons\\\n" +
+                          "They are rendered and saved again as they appear in the menu.\n" +
                           "Auto-resets to FALSE after running."
         );
 

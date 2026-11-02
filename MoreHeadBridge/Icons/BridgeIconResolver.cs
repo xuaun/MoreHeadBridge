@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MoreHeadBridge;
 
-// Fills asset.icon for cosmetics the game can't render (no SemiIconMaker): private PNG cache, then the prefab's texture, then the placeholder.
+// Fills asset.icon from the saved renders of cosmetic mods and, for cosmetics the game can't render (no SemiIconMaker), from the private PNG cache, then the prefab's texture, then the placeholder.
 internal static class BridgeIconResolver
 {
     internal static Sprite? Ensure(CosmeticAsset? asset)
@@ -10,14 +10,24 @@ internal static class BridgeIconResolver
         if (asset == null) return null;
         if (asset.icon != null) return asset.icon;
 
-        var prefab = asset.prefab?.Prefab;
-        if (prefab != null && prefab.GetComponentInChildren<SemiIconMaker>(true) != null)
-            return null;
+        if (!BridgeIds.IsBridgeAsset(asset))
+        {
+            if (BridgeIds.IsModdedCosmetic(asset) && RenderedIconCache.Has(asset))
+            {
+                var saved = RenderedIconCache.Load(asset);
+                if (saved != null) return asset.icon = saved;
+            }
+
+            // No PNG of ours: the game's own loading takes over. Checked first because the first read of Prefab loads it from disk, which every button would pay.
+            if (!IconCapture.HasCache(asset)) return null;
+
+            var prefab = asset.prefab?.Prefab;
+            if (prefab != null && prefab.GetComponentInChildren<SemiIconMaker>(true) != null)
+                return null;
+        }
 
         if (IconCapture.HasCache(asset))
             return asset.icon = SemiFunc.LoadSpriteFromFile(IconCapture.CachePathFor(asset));
-
-        if (!BridgeIds.IsBridgeAsset(asset)) return null;
 
         if (Plugin.UseTextureAsPlaceholder.Value &&
             HhhCosmeticLoader.BridgeIconTextures.TryGetValue(asset.assetId, out var tex) && tex != null)

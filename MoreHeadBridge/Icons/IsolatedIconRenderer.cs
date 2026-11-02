@@ -11,6 +11,17 @@ internal static class IsolatedIconRenderer
     private const float Fov = 26f;                      // matches the vanilla SemiIcon Maker camera
     private static readonly Vector3 StageOrigin = new(0f, 100000f, 0f); // far from any scene geometry
 
+    // True for cosmetics that only change the avatar, like hiding the pupils: there's nothing to render alone, so IconCapture photographs the avatar instead.
+    internal static bool HasNoMesh(CosmeticAsset asset)
+    {
+        var prefab = asset?.prefab?.Prefab;
+        if (prefab == null) return false;
+
+        foreach (var r in prefab.GetComponentsInChildren<Renderer>(includeInactive: true))
+            if (r != null && r is not ParticleSystemRenderer) return false;
+        return true;
+    }
+
     // Renders the cosmetic in isolation, returning a square transparent texture (caller owns it and must Destroy it). Null when the prefab is missing or has no renderers to frame.
     internal static Texture2D? Render(CosmeticAsset asset)
     {
