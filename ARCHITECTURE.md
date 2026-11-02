@@ -6,6 +6,11 @@ top. Flat namespace (`MoreHeadBridge`), one type per file.
 
 ## Lifecycle (Plugin.Awake, order matters)
 
+`HhhPreloadPlugin`, a second plugin in this DLL, runs before everything because its GUID sorts first.
+`HhhPreloader` patches `AssetBundle.LoadFromFile` so `.hhh` files open in the background for whoever
+asks next (MoreHead, or the bridge without it); `Plugin.Awake` removes the patch right after `LoadAll`.
+It can't touch `Plugin`, `BridgeLog`, REPOLib or MenuLib: none of them are ready that early.
+
 1. `BridgePaths.Init` → `BindConfig` → MenuLib detection.
 2. `CustomizerStore.Load()` + one-shot config triggers (Reset / Import / Export).
 3. `HhhCosmeticLoader.LoadAll()` — scans `BepInEx/plugins/**/*.hhh`, registers each prefab through

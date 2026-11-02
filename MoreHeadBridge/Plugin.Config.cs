@@ -58,6 +58,7 @@ public partial class Plugin
 
     // ── [Compatibility] ──────────────────────────────────────────────────────
     public static ConfigEntry<bool> FixCosmeticsMenuPerformance { get; private set; } = null!;
+    public static ConfigEntry<bool> ParallelCosmeticLoading { get; private set; } = null!;
     public static ConfigEntry<bool> RemoveBridgePhysics { get; private set; } = null!;
     public static ConfigEntry<bool> LoopBridgeAnimation { get; private set; } = null!;
     public static ConfigEntry<VanillaEquipAnimationMode> BridgeEquipAnimationMode { get; private set; } = null!;
@@ -511,6 +512,16 @@ public partial class Plugin
             description: "Enable this if you have many cosmetics mods and the vanilla\n" +
                          "cosmetics tabs (HEAD/BODY/ARMS/LEGS) are stuttering or\n" +
                          "taking too long to load. Default = FALSE."
+        );
+
+        ParallelCosmeticLoading = Config.Bind(
+            section: "Compatibility",
+            key: HhhPreloader.OptionKey,
+            defaultValue: HhhPreloader.EnabledByDefault,
+            description: "When TRUE (default), .hhh files are opened in the background at startup, so the\n" +
+                         "game reaches the main menu faster with many cosmetics. It also speeds up MoreHead,\n" +
+                         "without changing it. Set to FALSE if another mod has trouble loading .hhh files.\n" +
+                         "Takes effect on the next game launch."
         );
 
         RemoveBridgePhysics = Config.Bind(

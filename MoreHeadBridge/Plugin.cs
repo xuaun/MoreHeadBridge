@@ -56,6 +56,7 @@ public partial class Plugin : BaseUnityPlugin
         }
 
         HhhCosmeticLoader.LoadAll();
+        HhhPreloader.Finish();
         PerfProbe.BootMark("bridge .hhh loaded");   // TEMP-TEST
         // Emit a single [Warning] + per-GO [Debug] lines for the PartShrinker "missing script" warnings suppressed during LoadAll().
         PartShrinkerSuppressor.FlushSuppressedLog();

@@ -165,9 +165,9 @@ internal static class HhhCosmeticLoader
         BridgeBlacklist.MirrorToMoreHead();
     }
 
-    // Files MoreHead already opened won't be opened again, so their bytes aren't read.
+    // Files MoreHead already opened or the preloader will open don't need their bytes read.
     private static Task<byte[]?> ReadAhead(string path)
-        => MoreHeadPrefabs.Has(path) ? Task.FromResult<byte[]?>(null) : Task.Run(() => ReadBytesOrNull(path));
+        => MoreHeadPrefabs.Has(path) || HhhPreloader.Active ? Task.FromResult<byte[]?>(null) : Task.Run(() => ReadBytesOrNull(path));
 
     // Reads a .hhh file's bytes on a background thread; null on failure or if too small (TryRegister then falls back to LoadFromFile or skips).
     private static byte[]? ReadBytesOrNull(string path)
