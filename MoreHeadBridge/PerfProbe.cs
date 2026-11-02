@@ -68,6 +68,7 @@ internal static class PerfProbe
         ("PlayerAvatarVisuals", "Start"),
         ("MoreHeadBridge.BridgeIconResolver", "Ensure"),
         ("MoreHeadBridge.CosmeticsMenuNav", "WireSections"),
+        ("MoreHeadBridge.LazyCosmeticGrid", "Refresh"),
         ("MoreHeadBridge.CosmeticsScrollBuilder", "BuildVirtualScrollContent"),
         ("MoreHeadBridge.CosmeticsScrollBuilder", "BuildWorldScrollContent"),
         ("MoreHeadBridge.CosmeticsScrollBuilder", "BuildVanillaScrollContent"),

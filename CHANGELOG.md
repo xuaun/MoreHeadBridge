@@ -19,6 +19,7 @@
 - Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
 - Much faster startup and much less memory with MoreHead installed: cosmetics it already loaded are reused instead of being loaded a second time
 - Even faster startup with many cosmetics, with or without MoreHead: `.hhh` files open in the background. Turn it off with `ParallelCosmeticLoading`
+- `FixCosmeticsMenuPerformance` now creates only the buttons near the visible area, so opening the menu and changing tabs is much faster with many cosmetics. Off by default
 - Icons of other cosmetic mods render what's on screen first, one per frame, and are saved per profile, so later sessions skip rendering them. Each one also takes about 22 KB of memory instead of 340 KB. Clear All Icons and `DeleteIconCache` without a filter delete them too. Turn saving off with `SaveModdedIconsToDisk`
 - Cosmetics with no mesh of their own, like eyes that only hide the pupils, now get an icon from a photo of the avatar
 - Fixed an error when the game generated icons for cosmetics from other mods

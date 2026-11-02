@@ -353,10 +353,10 @@ internal static class CosmeticsFilterPatch
         return null;
     }
 
-    internal static bool IsUnlocked(MenuElementCosmeticButton btn)
+    internal static bool IsUnlocked(CosmeticAsset asset)
     {
         if (MetaManager.instance == null) return true;
-        int idx = CosmeticsMenuState.GetAssetIndex(btn.cosmeticAsset);
+        int idx = CosmeticsMenuState.GetAssetIndex(asset);
         if (idx < 0) return true;
         return MetaManager.instance.cosmeticUnlocks.Contains(idx);
     }

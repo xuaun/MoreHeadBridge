@@ -509,9 +509,10 @@ public partial class Plugin
             section: "Compatibility",
             key: "FixCosmeticsMenuPerformance",
             defaultValue: false,
-            description: "Enable this if you have many cosmetics mods and the vanilla\n" +
-                         "cosmetics tabs (HEAD/BODY/ARMS/LEGS) are stuttering or\n" +
-                         "taking too long to load. Default = FALSE."
+            description: "Enable this if you have many cosmetics mods and the cosmetics menu is slow to\n" +
+                         "open or to change tabs. Only the buttons near the visible area are created,\n" +
+                         "and the rest appear as you scroll. Default = FALSE.\n" +
+                         "Leave it off if another mod needs every button of a tab to exist."
         );
 
         ParallelCosmeticLoading = Config.Bind(

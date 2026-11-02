@@ -286,6 +286,9 @@ internal static class CosmeticsScrollBuilder
         MenuPageCosmetics page, MenuElementCosmeticSection section, IEnumerable<CosmeticAsset> assets)
     {
         var collapsed = CosmeticGrouping.Collapse(assets);
+        if (Plugin.FixCosmeticsMenuPerformance.Value && !BridgePatcher.LazyGridBroken)
+            return LazyCosmeticGrid.Attach(page, section, collapsed).Count;
+
         foreach (var (rep, members) in collapsed)
         {
             var btnGO = Object.Instantiate(page.sectionButtonPrefab, section.cosmeticListTransform);

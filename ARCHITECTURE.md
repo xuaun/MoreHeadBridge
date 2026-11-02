@@ -25,6 +25,11 @@ It can't touch `Plugin`, `BridgeLog`, REPOLib or MenuLib: none of them are ready
 `BridgePatcher` applies each `[HarmonyPatch]` class individually (a game update that removes one
 member disables one feature, not the mod); the cosmetics-menu takeover cluster fails as a unit.
 
+With `FixCosmeticsMenuPerformance` on, each section of the cosmetics menu keeps its items in a
+`LazyCosmeticGrid`: buttons are created when their row comes near the viewport, and rows are hidden
+when they leave it. Code that walks a section's buttons only sees the rows created so far, so read
+the grid's data instead.
+
 ## Subsystems (by folder)
 
 | Folder                                                                                  | Owns                                                                                                                                                        |

@@ -23,7 +23,7 @@ internal static class CosmeticsMenuNav
     }
 
     // Item grid of each section, section-to-section links, sub-category row, and the toolbar/tab entry points.
-    private static void WireSections(MenuPageCosmetics page)
+    internal static void WireSections(MenuPageCosmetics page)
     {
         _confirm.TryGet(page, out var confirm);
         _reset.TryGet(page, out var reset);
@@ -44,39 +44,52 @@ internal static class CosmeticsMenuNav
         {
             if (section == null || section.isStickyHeader || section.cosmeticListTransform == null) continue;
 
+            // Slots of rows not shown yet are empty, and an empty target just doesn't move the selection until the row appears.
+            var lazy = section.GetComponent<LazyCosmeticGrid>();
+
             // activeSelf, not activeInHierarchy: the scroll box deactivates off-screen sections, and hidden cosmetics are inactive buttons.
-            var items = section.cosmeticListTransform.GetComponentsInChildren<MenuElementCosmeticButton>(true)
+            var items = lazy != null ? null : section.cosmeticListTransform.GetComponentsInChildren<MenuElementCosmeticButton>(true)
                 .Where(b => b.gameObject.activeSelf && b.menuButton != null && b.menuButton.menuSelectableElement != null)
                 .ToList();
-            if (items.Count == 0) continue;
+            int count = lazy != null ? lazy.Slots : items!.Count;
+            if (count == 0) continue;
 
             var grid = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
             int cols = Mathf.Max(1, grid != null ? grid.constraintCount : 1);
-            int rows = (items.Count + cols - 1) / cols;
+            int rows = (count + cols - 1) / cols;
+
+            MenuElementCosmeticButton? ItemAt(int i)
+            {
+                if (lazy != null) return lazy.ButtonAt(i);
+                return i < items!.Count ? items[i] : null;
+            }
 
             MenuSelectableElement? At(int x, int y)
             {
                 if (x < 0 || x >= cols || y < 0) return null;
-                int i = x + y * cols;
-                return i < items.Count ? items[i].menuButton.menuSelectableElement : null;
+                var item = ItemAt(x + y * cols);
+                return item != null && item.menuButton != null ? item.menuButton.menuSelectableElement : null;
             }
 
             var color = section.colorButton != null ? section.colorButton.menuSelectableElement : null;
-            Selectable? previous = prevBottom != null ? prevBottom[0] : aboveList;
+            Selectable? previous = prevBottom == null ? aboveList : prevBottom.Count > 0 ? prevBottom[0] : null;
             Selectable? sectionTop = color != null ? color : previous;
 
-            for (int i = 0; i < items.Count; i++)
+            for (int i = 0; i < count; i++)
             {
                 int x = i % cols, y = i / cols;
-                var main = items[i].menuButton.menuSelectableElement;
-                var tint = items[i].tintableButton != null ? items[i].tintableButton.menuSelectableElement : null;
+                var main = At(x, y);
+                if (main == null) continue;
+
+                var item = ItemAt(i)!;
+                var tint = item.tintableButton != null ? item.tintableButton.menuSelectableElement : null;
                 Selectable? up = y == 0 ? sectionTop : At(x, y - 1);
 
                 main.navigation = new Navigation
                 {
                     mode = Navigation.Mode.Explicit,
                     selectOnUp = tint != null ? tint : up,
-                    selectOnDown = At(x, y + 1) ?? (y + 1 < rows ? items[^1].menuButton.menuSelectableElement : null),
+                    selectOnDown = At(x, y + 1) ?? (y + 1 < rows ? At((count - 1) % cols, rows - 1) : null),
                     selectOnLeft = x == 0 ? leftEdge : At(x - 1, y),
                     selectOnRight = At(x + 1, y),
                 };
