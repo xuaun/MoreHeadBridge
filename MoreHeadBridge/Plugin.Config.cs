@@ -51,6 +51,7 @@ public partial class Plugin
     // ── [OtherModdedCosmetics] ────────────────────────────────────────────────
     public static ConfigEntry<bool> HighlightModdedCosmetics { get; private set; } = null!;
     public static ConfigEntry<bool> AutoUnlockModdedCosmetics { get; private set; } = null!;
+    public static ConfigEntry<bool> SaveModdedIconsToDisk { get; private set; } = null!;
     public static ConfigEntry<bool> AllowModdedOverrides { get; private set; } = null!;
     public static ConfigEntry<bool> ResetModdedUnlocks { get; private set; } = null!;
     public static ConfigEntry<bool> EnableModdedCustomColors { get; private set; } = null!;
@@ -453,6 +454,16 @@ public partial class Plugin
                          "cosmetics (registered via REPOLib by other mods) that support a custom color\n" +
                          "channel, allowing custom RGB painting beyond the game's palette.\n" +
                          "When FALSE (default), modded cosmetics can only use the standard palette."
+        );
+
+        SaveModdedIconsToDisk = Config.Bind(
+            section: "OtherModdedCosmetics",
+            key: "SaveModdedIconsToDisk",
+            defaultValue: true,
+            description: "When TRUE (default), the icons the game renders for cosmetics from other mods are\n" +
+                         "saved to disk (about 22 KB each, in BepInEx\\cache\\MoreHeadBridge\\RenderedIcons\\),\n" +
+                         "so later sessions load them instead of rendering them again.\n" +
+                         "When FALSE, nothing is saved or read: each session renders them once as they appear."
         );
 
         HighlightModdedCosmetics = Config.Bind(

@@ -1,4 +1,4 @@
-// Small PNGs of the icons the game renders for cosmetic mods, so later sessions load them instead of rendering. Kept per profile and emptied when its .repobundle files or the game version change.
+// Small copies of the icons the game renders for cosmetic mods, saved as compressed texture data so later sessions load them without rendering or decoding. Kept per profile and emptied when its .repobundle files or the game version change.
 
 using BepInEx;
 using System.Collections.Generic;
@@ -7,16 +7,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 
 namespace MoreHeadBridge;
 
 internal static class RenderedIconCache
 {
-    // Same size as the .hhh icons. The game's 512x512 takes about 340 KB of memory against 20 KB, for an icon that fills 34 UI units on screen.
+    // The menu shows icons at about 64 pixels, so the game's 512x512 only ever reaches the screen through mipmaps this size holds too. About 22 KB of memory against 340 KB.
     internal const int IconSize = 128;
 
-    private const int FormatVersion = 1;
+    private const int FormatVersion = 3;
     private const double ReadbackTimeout = 5.0;
 
     private static readonly string Dir = Path.Combine(Paths.CachePath, "MoreHeadBridge", "RenderedIcons");
@@ -25,25 +24,25 @@ internal static class RenderedIconCache
     private static readonly Dictionary<CosmeticAsset, string> _paths = new();
     private static HashSet<string>? _saved;
 
-    internal static bool Has(CosmeticAsset asset) => Saved().Contains(PathFor(asset));
+    internal static bool Has(CosmeticAsset asset) => Plugin.SaveModdedIconsToDisk.Value && Saved().Contains(PathFor(asset));
 
     internal static bool HasAny() => Saved().Count > 0;
 
     internal static Sprite? Load(CosmeticAsset asset)
     {
         string path = PathFor(asset);
-        try { return SpriteFromPng(path, File.ReadAllBytes(path)); }
+        try { return SpriteFromSaved(path, File.ReadAllBytes(path)); }
         catch (System.Exception ex) { return Forget(path, ex.Message); }
     }
 
     internal static async Task<Sprite?> LoadAsync(CosmeticAsset asset)
     {
         string path = PathFor(asset);
-        try { return SpriteFromPng(path, await File.ReadAllBytesAsync(path)); }
+        try { return SpriteFromSaved(path, await File.ReadAllBytesAsync(path)); }
         catch (System.Exception ex) { return Forget(path, ex.Message); }
     }
 
-    // Stands in for SemiIconMaker.CreateIconAsync on cosmetic mods: shrinks the pixels on a worker instead of compressing 512x512 on the main thread.
+    // Stands in for SemiIconMaker.CreateIconAsync on cosmetic mods: shrinks the pixels on a worker before compressing them.
     internal static async Task<Sprite> RenderAsync(SemiIconMaker maker, CosmeticAsset asset, System.Func<bool> isCurrent)
     {
         if (!isCurrent()) return null!;
@@ -51,7 +50,7 @@ internal static class RenderedIconCache
         var readback = maker.CreateIconReadback();
         if (readback != null)
         {
-            // Keeps waiting if the button goes away: the PNG is still worth saving.
+            // Keeps waiting if the button goes away: the icon is still worth saving.
             double deadline = Time.realtimeSinceStartupAsDouble + ReadbackTimeout;
             while (!readback.done && Time.realtimeSinceStartupAsDouble < deadline)
                 await Task.Yield();
@@ -60,9 +59,14 @@ internal static class RenderedIconCache
             {
                 byte[] pixels = readback.pixels;
                 int size = readback.width;
-                byte[] small = await Task.Run(() => Shrink(pixels, size));
-                Save(asset, small);
-                return isCurrent() ? SpriteFromPixels(small) : null!;
+                byte[] small = await Task.Run(() => Shrink(pixels, size, IconSize));
+
+                var texture = CompressedTexture(small, IconSize);
+                if (texture.format == TextureFormat.DXT5) Save(asset, texture.GetRawTextureData());
+
+                if (isCurrent()) return FinishSprite(texture);
+                Object.Destroy(texture);
+                return null!;
             }
 
             if (readback.done && !readback.failed && isCurrent())
@@ -112,7 +116,7 @@ internal static class RenderedIconCache
     private static string PathFor(CosmeticAsset asset)
     {
         if (!_paths.TryGetValue(asset, out var path))
-            _paths[asset] = path = Path.Combine(Dir, Hash128.Compute(asset.assetId) + ".png");
+            _paths[asset] = path = Path.Combine(Dir, Hash128.Compute(asset.assetId) + ".icon");
         return path;
     }
 
@@ -133,7 +137,7 @@ internal static class RenderedIconCache
                 File.WriteAllText(SignatureFile, signature);
             }
 
-            _saved.UnionWith(Directory.GetFiles(Dir, "*.png"));
+            _saved.UnionWith(Directory.GetFiles(Dir, "*.icon"));
         }
         catch (System.Exception ex)
         {
@@ -186,16 +190,17 @@ internal static class RenderedIconCache
            && readback.width % IconSize == 0
            && readback.pixels.Length == readback.width * readback.height * 4;
 
-    // Averages weighted by alpha, so transparent pixels don't darken the edges.
-    private static byte[] Shrink(byte[] source, int sourceSize)
+    // A plain average, like the game's mipmaps: the icon camera clears to gray with zero alpha, and that gray mixed into the edges is what keeps thin details like hair visible.
+    private static byte[] Shrink(byte[] source, int sourceSize, int size)
     {
-        int factor = sourceSize / IconSize;
+        int factor = sourceSize / size;
         int samples = factor * factor;
-        var result = new byte[IconSize * IconSize * 4];
+        int half = samples / 2;
+        var result = new byte[size * size * 4];
 
-        for (int y = 0; y < IconSize; y++)
+        for (int y = 0; y < size; y++)
         {
-            for (int x = 0; x < IconSize; x++)
+            for (int x = 0; x < size; x++)
             {
                 int r = 0, g = 0, b = 0, a = 0;
                 for (int row = 0; row < factor; row++)
@@ -203,28 +208,27 @@ internal static class RenderedIconCache
                     int i = ((y * factor + row) * sourceSize + x * factor) * 4;
                     for (int column = 0; column < factor; column++, i += 4)
                     {
-                        int alpha = source[i + 3];
-                        r += source[i] * alpha;
-                        g += source[i + 1] * alpha;
-                        b += source[i + 2] * alpha;
-                        a += alpha;
+                        r += source[i];
+                        g += source[i + 1];
+                        b += source[i + 2];
+                        a += source[i + 3];
                     }
                 }
 
-                if (a == 0) continue;
-
-                int o = (y * IconSize + x) * 4;
-                result[o] = (byte)(r / a);
-                result[o + 1] = (byte)(g / a);
-                result[o + 2] = (byte)(b / a);
-                result[o + 3] = (byte)(a / samples);
+                int o = (y * size + x) * 4;
+                result[o] = (byte)((r + half) / samples);
+                result[o + 1] = (byte)((g + half) / samples);
+                result[o + 2] = (byte)((b + half) / samples);
+                result[o + 3] = (byte)((a + half) / samples);
             }
         }
         return result;
     }
 
-    private static void Save(CosmeticAsset asset, byte[] pixels)
+    private static void Save(CosmeticAsset asset, byte[] data)
     {
+        if (!Plugin.SaveModdedIconsToDisk.Value) return;
+
         string path = PathFor(asset);
         Saved().Add(path);
 
@@ -233,7 +237,7 @@ internal static class RenderedIconCache
             string temp = path + "." + System.Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                File.WriteAllBytes(temp, ImageConversion.EncodeArrayToPNG(pixels, GraphicsFormat.R8G8B8A8_SRGB, IconSize, IconSize));
+                File.WriteAllBytes(temp, data);
                 if (File.Exists(path)) File.Replace(temp, path, null);
                 else File.Move(temp, path);
             }
@@ -248,31 +252,33 @@ internal static class RenderedIconCache
         });
     }
 
-    private static Sprite SpriteFromPixels(byte[] pixels)
+    // Same setup as the game's rendered icons.
+    private static Texture2D CompressedTexture(byte[] pixels, int size)
     {
-        var texture = new Texture2D(IconSize, IconSize, TextureFormat.RGBA32, mipChain: true);
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true);
         texture.SetPixelData(pixels, 0);
         texture.Apply(updateMipmaps: true, makeNoLongerReadable: false);
-        return FinishSprite(texture);
+        texture.Compress(highQuality: false);
+        return texture;
     }
 
-    private static Sprite? SpriteFromPng(string path, byte[] png)
+    private static Sprite? SpriteFromSaved(string path, byte[] data)
     {
-        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: true);
-        if (!texture.LoadImage(png, markNonReadable: false))
+        var texture = new Texture2D(IconSize, IconSize, TextureFormat.DXT5, mipChain: true);
+        try
+        {
+            texture.LoadRawTextureData(data);
+        }
+        catch (System.Exception ex)
         {
             Object.Destroy(texture);
-            return Forget(path, "invalid PNG");
+            return Forget(path, ex.Message);
         }
-
-        texture.Apply(updateMipmaps: true, makeNoLongerReadable: false);
         return FinishSprite(texture);
     }
 
-    // Same setup as the game's rendered icons.
     private static Sprite FinishSprite(Texture2D texture)
     {
-        texture.Compress(highQuality: false);
         texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
         return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
     }

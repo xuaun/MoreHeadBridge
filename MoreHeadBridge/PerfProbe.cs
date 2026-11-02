@@ -30,6 +30,10 @@ internal static class PerfProbe
     private static string? _window;
     private static double _windowStart, _lastSlow, _lastFrame, _worst;
     private static int _frames, _over33, _over100;
+    private static readonly System.Diagnostics.Stopwatch BootClock = new();
+    private static double _bootStart, _lastBootMark;
+    private static bool _mainMenuMarked;
+
     private static int _iconWaits;
     private static double _iconWaitTotal, _iconWaitMax;
 
@@ -55,8 +59,8 @@ internal static class PerfProbe
         ("SemiIconMaker+IconReadback", "CreateSprite"),
         ("SemiFunc", "LoadSpriteFromFile"),
         ("SemiFunc", "SpriteFromBytes"),
-        ("MoreHeadBridge.RenderedIconCache", "SpriteFromPixels"),
-        ("MoreHeadBridge.RenderedIconCache", "SpriteFromPng"),
+        ("MoreHeadBridge.RenderedIconCache", "CompressedTexture"),
+        ("MoreHeadBridge.RenderedIconCache", "SpriteFromSaved"),
         ("MenuButton", "Awake"),
         ("MenuSelectableElement", "Awake"),
         ("MenuElementCosmeticSection", "Awake"),
@@ -100,7 +104,60 @@ internal static class PerfProbe
         if (update != null)
             harmony.Patch(update, postfix: new HarmonyMethod(typeof(PerfProbe), nameof(OnFrame)));
 
+        Mark(harmony, typeof(RunManager), "Awake", nameof(OnRunManagerAwake));
+        Mark(harmony, typeof(MenuPageMain), "Start", nameof(OnMainMenu));
+        REPOLib.BundleLoader.OnAllBundlesLoaded += () => BootMark("REPOLib bundles loaded");
+
         Plugin.Logger.LogInfo("[PERF] probe active");
+    }
+
+    // Startup timeline: seconds since the process started, seconds since the last mark, and memory in use. Unity's clock restarts with the first scene, so it only gives the starting point.
+    internal static void BootMark(string label)
+    {
+        if (!BootClock.IsRunning)
+        {
+            _bootStart = Time.realtimeSinceStartupAsDouble;
+            BootClock.Start();
+        }
+
+        double now = _bootStart + BootClock.Elapsed.TotalSeconds;
+        var counters = new ProcessMemoryCounters { Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<ProcessMemoryCounters>() };
+        GetProcessMemoryInfo(GetCurrentProcess(), ref counters, counters.Size);
+
+        Plugin.Logger.LogInfo(System.FormattableString.Invariant(
+            $"[PERF] boot '{label}': {now:F1} s (+{now - _lastBootMark:F1} s), private memory {counters.PrivateUsage.ToInt64() / (1024 * 1024)} MB, working set {counters.WorkingSetSize.ToInt64() / (1024 * 1024)} MB"));
+        _lastBootMark = now;
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct ProcessMemoryCounters
+    {
+        public uint Size;
+        public uint PageFaultCount;
+        public System.IntPtr PeakWorkingSetSize;
+        public System.IntPtr WorkingSetSize;
+        public System.IntPtr QuotaPeakPagedPoolUsage;
+        public System.IntPtr QuotaPagedPoolUsage;
+        public System.IntPtr QuotaPeakNonPagedPoolUsage;
+        public System.IntPtr QuotaNonPagedPoolUsage;
+        public System.IntPtr PagefileUsage;
+        public System.IntPtr PeakPagefileUsage;
+        public System.IntPtr PrivateUsage;
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", EntryPoint = "K32GetProcessMemoryInfo")]
+    private static extern bool GetProcessMemoryInfo(System.IntPtr process, ref ProcessMemoryCounters counters, uint size);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern System.IntPtr GetCurrentProcess();
+
+    private static void OnRunManagerAwake() => BootMark("RunManager.Awake");
+
+    private static void OnMainMenu()
+    {
+        if (_mainMenuMarked) return;
+        _mainMenuMarked = true;
+        BootMark("main menu");
     }
 
     private static System.Type? Find(string name)

@@ -17,7 +17,7 @@
 - Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
 - The icon batch generator now names each cosmetic it couldn't capture, with its category
 - Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
-- Icons of other cosmetic mods render what's on screen first, one per frame, and are saved per profile, so later sessions skip rendering them. Each one also takes about 20 KB of memory instead of 340 KB. Clear All Icons and `DeleteIconCache` without a filter delete them too
+- Icons of other cosmetic mods render what's on screen first, one per frame, and are saved per profile, so later sessions skip rendering them. Each one also takes about 22 KB of memory instead of 340 KB. Clear All Icons and `DeleteIconCache` without a filter delete them too. Turn saving off with `SaveModdedIconsToDisk`
 - Cosmetics with no mesh of their own, like eyes that only hide the pupils, now get an icon from a photo of the avatar
 - Fixed an error when the game generated icons for cosmetics from other mods
 - If MoreHead isn't updated yet, its broken scroll patch is turned off so menus can scroll again

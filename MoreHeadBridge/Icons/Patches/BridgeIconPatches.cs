@@ -98,7 +98,7 @@ internal static class IconRenderQueuePatch
     }
 }
 
-// Cosmetic mods go through RenderedIconCache: a small icon, saved for later sessions. Items, presets and vanilla cosmetics keep the game's path.
+// Cosmetic mods go through RenderedIconCache: a smaller icon, saved for later sessions. Items, presets and vanilla cosmetics keep the game's path.
 [HarmonyPatch(typeof(SemiIconMaker), nameof(SemiIconMaker.CreateIconAsync))]
 internal static class RenderedIconPatch
 {
@@ -113,7 +113,7 @@ internal static class RenderedIconPatch
     }
 }
 
-// Keeps the small icons of cosmetic mods for the whole session: vanilla destroys them with the button, which re-rendered the whole tab on every visit.
+// Keeps the saved-size icons of cosmetic mods for the whole session: vanilla destroys them with the button, which re-rendered the whole tab on every visit.
 [HarmonyPatch(typeof(MenuElementCosmeticButton), "OnDestroy")]
 internal static class KeepRenderedIconPatch
 {
