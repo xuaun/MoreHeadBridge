@@ -9,7 +9,9 @@ top. Flat namespace (`MoreHeadBridge`), one type per file.
 1. `BridgePaths.Init` → `BindConfig` → MenuLib detection.
 2. `CustomizerStore.Load()` + one-shot config triggers (Reset / Import / Export).
 3. `HhhCosmeticLoader.LoadAll()` — scans `BepInEx/plugins/**/*.hhh`, registers each prefab through
-   REPOLib (`assetId = "morehead-bridge:" + name`, see `BridgeIds`).
+   REPOLib (`assetId = "morehead-bridge:" + name`, see `BridgeIds`). Files MoreHead already opened
+   are cloned from its prefabs (`MoreHeadPrefabs`): meshes, materials and clips stay shared, so
+   never write to those assets.
 4. `MiniSemibotCosmetic.Register()` — synthetic WORLD cosmetic, joins the normal pipeline.
 5. `PerCosmeticColors.Load()`, icon-cache cleanup, **`BridgePatcher.ApplyAll()`**, config handlers.
 6. Reflection-based compat patches via `TryApply` (targets may be absent: REPOLib internals,

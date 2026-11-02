@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -12,6 +13,9 @@ internal static class CosmeticPrefabFixer
     // Resolved once on first use; null means MoreHeadUtilities is not loaded.
     private static Type? _partShrinkerType;
     private static bool _partShrinkerResolved;
+
+    // Original wrap mode of the clips FixCore looped.
+    private static readonly Dictionary<AnimationClip, WrapMode> _loopedClips = new();
 
     // ── Batch state ────────────────────────────────────────────────────────────
     private static bool _inBatch;
@@ -125,9 +129,19 @@ internal static class CosmeticPrefabFixer
         }
         else
         {
-            // fixAnimation explicitly false: remove any load-time AnimatorLooper so a per-cosmetic "Loop = No" takes effect on re-equip. Animation.wrapMode is NOT reset — FixCore mutates the SHARED clip asset (can't undo per-instance); AnimatorLooper is the component-level mechanism we control.
+            // fixAnimation explicitly false: remove any load-time AnimatorLooper so a per-cosmetic "Loop = No" takes effect on re-equip.
             foreach (var looper in instance.GetComponentsInChildren<AnimatorLooper>(includeInactive: true))
                 UnityEngine.Object.Destroy(looper);
+
+            // FixCore loops the SHARED clip on MoreHead's prefabs, and bridge clones share those clips: this instance's states go back to the original mode.
+            foreach (var anim in instance.GetComponentsInChildren<Animation>(includeInactive: true))
+            {
+                foreach (AnimationState state in anim)
+                {
+                    if (state != null && state.clip != null && _loopedClips.TryGetValue(state.clip, out var mode))
+                        state.wrapMode = mode;
+                }
+            }
         }
 
         if (cols > 0 || rbs > 0 || animLoops > 0 || animrLoops > 0)
@@ -240,6 +254,7 @@ internal static class CosmeticPrefabFixer
             {
                 if (anim.clip != null && anim.clip.wrapMode != WrapMode.Loop)
                 {
+                    _loopedClips[anim.clip] = anim.clip.wrapMode;
                     anim.clip.wrapMode = WrapMode.Loop;
                     animLoops++;
                 }
