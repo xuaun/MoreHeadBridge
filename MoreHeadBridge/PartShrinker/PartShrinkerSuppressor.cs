@@ -172,10 +172,9 @@ internal static class PartShrinkerSuppressor
                 return false;
             }
 
-            // (c) Named-GO follow-up after (b) — record the GO name.
+            // (c) Named-GO follow-up after (b), which can repeat — record the GO name. Any other message ends the run.
             if (_suppressNextUnityLog && message.Contains("referenced script on this Behaviour"))
             {
-                _suppressNextUnityLog = false;
                 var goName = ExtractGoName(message);
                 if (goName != null) _suppressedGoNames.Add(goName);
                 return false;
