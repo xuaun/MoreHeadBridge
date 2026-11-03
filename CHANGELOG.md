@@ -14,6 +14,7 @@
 - The bridge's popups can be navigated with a controller or keyboard
 - The SEARCH field can be reached with a controller: confirm opens Steam's gamepad keyboard when it's available, otherwise it focuses the field for a physical keyboard
 - Fixed the Mini-Semibot in the expression preview keeping old custom colors after editing them in-game
+- Fixed the head in the main menu's news popup not showing your custom head color
 - Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
 - The icon batch generator now names each cosmetic it couldn't capture, with its category
 - Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
