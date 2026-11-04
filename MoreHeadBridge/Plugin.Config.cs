@@ -14,17 +14,19 @@ public partial class Plugin
     // ── [CosmeticsMenu] ──────────────────────────────────────────────────────
     public static ConfigEntry<bool> EnableMenuEnhancements { get; private set; } = null!;
     public static ConfigEntry<bool> ShowToolsButton { get; private set; } = null!;
+    public static ConfigEntry<bool> GroupCosmeticVariants { get; private set; } = null!;
+    public static ConfigEntry<bool> HideMoreHeadButton { get; private set; } = null!;
+    public static ConfigEntry<bool> HideMoreHeadDecorations { get; private set; } = null!;
+    public static ConfigEntry<bool> ExcludeMoreHeadFromPresetIcons { get; private set; } = null!;
+    public static ConfigEntry<SearchBarPosition> SearchFieldPosition { get; private set; } = null!;
+
+    // ── [CosmeticsMenuShortcuts] ─────────────────────────────────────────────
     public static ConfigEntry<MenuClickModifier> FavoriteClickModifier { get; private set; } = null!;
     public static ConfigEntry<MenuClickModifier> HideClickModifier { get; private set; } = null!;
     public static ConfigEntry<MenuClickModifier> CustomizerClickModifier { get; private set; } = null!;
     public static ConfigEntry<MenuGamepadButton> FavoriteGamepadButton { get; private set; } = null!;
     public static ConfigEntry<MenuGamepadButton> HideGamepadButton { get; private set; } = null!;
     public static ConfigEntry<MenuGamepadButton> CustomizerGamepadButton { get; private set; } = null!;
-    public static ConfigEntry<bool> GroupCosmeticVariants { get; private set; } = null!;
-    public static ConfigEntry<bool> HideMoreHeadButton { get; private set; } = null!;
-    public static ConfigEntry<bool> HideMoreHeadDecorations { get; private set; } = null!;
-    public static ConfigEntry<bool> ExcludeMoreHeadFromPresetIcons { get; private set; } = null!;
-    public static ConfigEntry<SearchBarPosition> SearchFieldPosition { get; private set; } = null!;
 
     // ── [Blacklist] ──────────────────────────────────────────────────────────
     public static ConfigEntry<BlacklistLoadMode> BridgeBlacklistMode { get; private set; } = null!;
@@ -164,68 +166,6 @@ public partial class Plugin
                          "Set to FALSE to hide it if you don't use those features."
         );
 
-        FavoriteClickModifier = Config.Bind(
-            section: "CosmeticsMenu",
-            key: "FavoriteClickModifier",
-            defaultValue: MenuClickModifier.Ctrl,
-            description: "Which held key makes a click FAVORITE a cosmetic: Ctrl, Alt or Shift.\n" +
-                         "Each click action needs a different key; on a conflict, all three revert to\n" +
-                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
-                         "Applies without restart."
-        );
-
-        HideClickModifier = Config.Bind(
-            section: "CosmeticsMenu",
-            key: "HideClickModifier",
-            defaultValue: MenuClickModifier.Alt,
-            description: "Which held key makes a click HIDE a cosmetic: Ctrl, Alt or Shift.\n" +
-                         "Each click action needs a different key; on a conflict, all three revert to\n" +
-                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
-                         "Applies without restart."
-        );
-
-        CustomizerClickModifier = Config.Bind(
-            section: "CosmeticsMenu",
-            key: "CustomizerClickModifier",
-            defaultValue: MenuClickModifier.Shift,
-            description: "Which held key makes a click open the Cosmetic Customizer: Ctrl, Alt or Shift.\n" +
-                         "Each click action needs a different key; on a conflict, all three revert to\n" +
-                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
-                         "Applies without restart."
-        );
-
-        FavoriteGamepadButton = Config.Bind(
-            section: "CosmeticsMenu",
-            key: "FavoriteGamepadButton",
-            defaultValue: MenuGamepadButton.LeftButton,
-            description: "Which gamepad button FAVORITES the selected cosmetic. Buttons are named by\n" +
-                         "position because labels differ per controller: TopButton is Y on Xbox, Triangle\n" +
-                         "on PlayStation and X on Switch; LeftButton is X, Square and Y. Off disables it.\n" +
-                         "Each action needs a different button; on a conflict, all three revert to the\n" +
-                         "defaults. On-screen hints show the real button. Applies without restart."
-        );
-
-        HideGamepadButton = Config.Bind(
-            section: "CosmeticsMenu",
-            key: "HideGamepadButton",
-            defaultValue: MenuGamepadButton.RightTrigger,
-            description: "Which gamepad button HIDES the selected cosmetic. Buttons are named by position\n" +
-                         "(see FavoriteGamepadButton); the right stick also rotates the avatar, so\n" +
-                         "RightStickClick is easy to press by accident. Off disables it.\n" +
-                         "Each action needs a different button; on a conflict, all three revert to the\n" +
-                         "defaults. On-screen hints show the real button. Applies without restart."
-        );
-
-        CustomizerGamepadButton = Config.Bind(
-            section: "CosmeticsMenu",
-            key: "CustomizerGamepadButton",
-            defaultValue: MenuGamepadButton.TopButton,
-            description: "Which gamepad button opens the Cosmetic Customizer for the selected cosmetic.\n" +
-                         "Buttons are named by position (see FavoriteGamepadButton). Off disables it.\n" +
-                         "Each action needs a different button; on a conflict, all three revert to the\n" +
-                         "defaults. On-screen hints show the real button. Applies without restart."
-        );
-
         GroupCosmeticVariants = Config.Bind(
             section: "CosmeticsMenu",
             key: "GroupCosmeticVariants",
@@ -292,6 +232,69 @@ public partial class Plugin
             description: "Where the search bar appears in the cosmetics menu.\n" +
                          "Bottom = at the bottom of the Semibot.\n" +
                          "Top    = above the category strip (default)."
+        );
+
+        // ── [CosmeticsMenuShortcuts] ─────────────────────────────────────────
+        FavoriteClickModifier = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "FavoriteClickModifier",
+            defaultValue: MenuClickModifier.Ctrl,
+            description: "Which held key makes a click FAVORITE a cosmetic: Ctrl, Alt or Shift.\n" +
+                         "Each click action needs a different key; on a conflict, all three revert to\n" +
+                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
+                         "Applies without restart."
+        );
+
+        HideClickModifier = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "HideClickModifier",
+            defaultValue: MenuClickModifier.Alt,
+            description: "Which held key makes a click HIDE a cosmetic: Ctrl, Alt or Shift.\n" +
+                         "Each click action needs a different key; on a conflict, all three revert to\n" +
+                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
+                         "Applies without restart."
+        );
+
+        CustomizerClickModifier = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "CustomizerClickModifier",
+            defaultValue: MenuClickModifier.Shift,
+            description: "Which held key makes a click open the Cosmetic Customizer: Ctrl, Alt or Shift.\n" +
+                         "Each click action needs a different key; on a conflict, all three revert to\n" +
+                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
+                         "Applies without restart."
+        );
+
+        FavoriteGamepadButton = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "FavoriteGamepadButton",
+            defaultValue: MenuGamepadButton.LeftButton,
+            description: "Which gamepad button FAVORITES the selected cosmetic. Buttons are named by\n" +
+                         "position because labels differ per controller: TopButton is Y on Xbox, Triangle\n" +
+                         "on PlayStation and X on Switch; LeftButton is X, Square and Y. Off disables it.\n" +
+                         "Each action needs a different button; on a conflict, all three revert to the\n" +
+                         "defaults. On-screen hints show the real button. Applies without restart."
+        );
+
+        HideGamepadButton = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "HideGamepadButton",
+            defaultValue: MenuGamepadButton.RightTrigger,
+            description: "Which gamepad button HIDES the selected cosmetic. Buttons are named by position\n" +
+                         "(see FavoriteGamepadButton); the right stick also rotates the avatar, so\n" +
+                         "RightStickClick is easy to press by accident. Off disables it.\n" +
+                         "Each action needs a different button; on a conflict, all three revert to the\n" +
+                         "defaults. On-screen hints show the real button. Applies without restart."
+        );
+
+        CustomizerGamepadButton = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "CustomizerGamepadButton",
+            defaultValue: MenuGamepadButton.TopButton,
+            description: "Which gamepad button opens the Cosmetic Customizer for the selected cosmetic.\n" +
+                         "Buttons are named by position (see FavoriteGamepadButton). Off disables it.\n" +
+                         "Each action needs a different button; on a conflict, all three revert to the\n" +
+                         "defaults. On-screen hints show the real button. Applies without restart."
         );
 
         // ── [BridgeAppearance] ────────────────────────────────────────────────
