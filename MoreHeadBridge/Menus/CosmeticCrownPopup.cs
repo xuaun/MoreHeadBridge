@@ -144,7 +144,7 @@ internal static class CosmeticCrownPopup
             var row = PopupUI.MakeRow(scrollView);
 
             // Cancel: close without any callback (pendingCrown unchanged); revert preview to the state before this sub-popup opened.
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 onPreview?.Invoke(existing); // null = no crown, non-null = prior config
                 popup.ClosePage(false);

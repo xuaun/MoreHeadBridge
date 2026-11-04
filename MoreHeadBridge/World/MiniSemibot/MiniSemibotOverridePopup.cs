@@ -571,7 +571,7 @@ internal static class MiniSemibotOverridePopup
         popup.AddElementToScrollView(scrollView =>
         {
             var row = PopupUI.MakeRow(scrollView);
-            MenuAPI.CreateREPOButton("Back", () => popup.ClosePage(false), row, new Vector2(-137f, 0f));
+            PopupUI.CreateBackButton("Back", () => popup.ClosePage(false), row, new Vector2(-137f, 0f));
             return row;
         }, topPadding: 10f);
 

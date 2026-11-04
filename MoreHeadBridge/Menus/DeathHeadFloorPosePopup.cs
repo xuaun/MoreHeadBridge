@@ -95,7 +95,7 @@ internal static class DeathHeadFloorPosePopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 popup.ClosePage(false);
                 onClose();

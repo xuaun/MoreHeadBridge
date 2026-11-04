@@ -776,7 +776,7 @@ internal static partial class CosmeticOverridePopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Back", () => popup.ClosePage(false),
+            PopupUI.CreateBackButton("Back", () => popup.ClosePage(false),
                 row, new Vector2(BtnBackX, 0f));
 
             void DoSave()

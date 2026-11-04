@@ -127,7 +127,7 @@ internal static class CustomColorPopup
         popup.AddElementToScrollView(scrollView =>
         {
             var row = PopupUI.MakeRow(scrollView);
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 popup.ClosePage(false);
                 RuntimeConfigApplier.ReapplyMenuCosmeticColors();   // revert live preview (menus only)

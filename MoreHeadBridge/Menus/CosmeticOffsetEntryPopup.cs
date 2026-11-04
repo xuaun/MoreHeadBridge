@@ -326,7 +326,7 @@ internal static class CosmeticOffsetEntryPopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 if (deathShown) onDeathHeadTrigger?.Invoke(false);
                 popup.ClosePage(false);

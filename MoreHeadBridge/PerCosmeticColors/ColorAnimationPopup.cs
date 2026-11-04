@@ -216,7 +216,7 @@ internal static class ColorAnimationPopup
             row.SetParent(scrollView, false);
             row.sizeDelta = new Vector2(0f, RowH);
 
-            MenuAPI.CreateREPOButton("Cancel", () => popup.ClosePage(false),
+            PopupUI.CreateBackButton("Cancel", () => popup.ClosePage(false),
                 row, new Vector2(BtnCancelX, 0f));
 
             MenuAPI.CreateREPOButton("Save", () =>

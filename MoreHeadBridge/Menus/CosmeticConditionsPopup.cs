@@ -382,7 +382,7 @@ internal static class CosmeticConditionsPopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 // Revert to snapshot and notify preview.
                 pendingCustomTypes.Clear();

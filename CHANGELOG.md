@@ -15,6 +15,10 @@
 - The SEARCH field can be reached with a controller: confirm opens Steam's gamepad keyboard when it's available, otherwise it focuses the field for a physical keyboard
 - Fixed the Mini-Semibot in the expression preview keeping old custom colors after editing them in-game
 - Fixed the head in the main menu's news popup not showing your custom head color
+- Fixed Back and ESC closing every open popup at once: they now close only the popup on top, the same way as its Cancel or Back button
+- Fixed the last rows of some popups, like the variant picker, being cut off with no way to scroll to them
+- Fixed the selection jumping to the top when moving quickly through a popup with a controller or keyboard
+- Fixed rows overlapping in the color animation popup when using a controller or keyboard in Rainbow mode
 - Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
 - The icon batch generator now names each cosmetic it couldn't capture, with its category
 - Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
