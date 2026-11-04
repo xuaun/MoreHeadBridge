@@ -95,7 +95,7 @@ internal sealed class DeathHeadPreviewInstance
     internal void ApplyDeathHeadOffsets(System.Func<string, CosmeticOffsetEntry?> resolver)
         => _mounter?.ApplyDeathHeadOffsets(resolver);
 
-    // Applies the DeathHead offset's transform to the configured cosmetic mount, or resets to identity when null. Mirrors how CosmeticOffsetCondition positions it.
+    // Applies the DeathHead offset's transform to the configured cosmetic mount, or returns it to where it rests when null. Mirrors how CosmeticOffsetCondition positions it.
     internal void ApplyOffset(CosmeticOffsetEntry? offset)
     {
         var mount = _mounter?.ConfiguredMount;
@@ -103,9 +103,7 @@ internal sealed class DeathHeadPreviewInstance
         var t = mount.transform;
         if (offset == null)
         {
-            t.localPosition = Vector3.zero;
-            t.localRotation = Quaternion.identity;
-            t.localScale = Vector3.one;
+            _mounter!.ConfiguredRest.ApplyTo(t);
             return;
         }
         t.localPosition = new Vector3(offset.PosX, offset.PosY, offset.PosZ);

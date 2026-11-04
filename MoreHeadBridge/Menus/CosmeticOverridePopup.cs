@@ -583,7 +583,8 @@ internal static partial class CosmeticOverridePopup
                     cosmeticType,
                     onPreview: offsets => preview.RefreshOffsets(offsets),
                     parentPopupTransform: popup.transform,
-                    worldMode: isWorld);
+                    worldMode: isWorld,
+                    rest: preview.RestPose(cosmeticType));
             },
                 row, new Vector2(BtnOffsetX, 0f));
             return row;
@@ -663,7 +664,8 @@ internal static partial class CosmeticOverridePopup
                         onPreview: ShowImpactPreview,
                         onDone: fp => { EndImpactPreview(); pendingFloorPose = fp; PreviewFull(); },
                         onClose: EndImpactPreview,
-                        parentPopupTransform: popup.transform);
+                        parentPopupTransform: popup.transform,
+                        rest: preview.RestPose(CustomizerStore.MapOverrideToVanilla(pendingType).Item1));
                 }, row, new Vector2(BtnOffsetX, 0f));
                 return impactRow = row;
             }, topPadding: BtnTopGap);
@@ -724,6 +726,7 @@ internal static partial class CosmeticOverridePopup
                     {
                         Existing = existing,
                         Triggers = null,
+                        Rest = preview.RestPose(CustomizerStore.MapOverrideToVanilla(pendingType).Item1),
                         OnDone = result =>
                         {
                             preview.ExitDeathHeadMode();

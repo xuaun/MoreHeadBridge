@@ -149,21 +149,24 @@ internal static class CosmeticOffsetPopup
                               Action<List<CosmeticOffsetEntry>>? onPreview = null,
                               Transform? parentPopupTransform = null,
                               bool worldMode = false,
-                              Action<bool>? onDeathHeadTrigger = null)
+                              Action<bool>? onDeathHeadTrigger = null,
+                              CosmeticRestPose? rest = null)
         => PopupUI.AfterMouseRelease(Plugin.Instance, () => ShowNow(
-            pendingOffsets, forType, onPreview, parentPopupTransform, worldMode, onDeathHeadTrigger));
+            pendingOffsets, forType, onPreview, parentPopupTransform, worldMode, onDeathHeadTrigger,
+            rest ?? CosmeticRestPose.OnAnchor));
 
     private static void ShowNow(List<CosmeticOffsetEntry> pendingOffsets,
                               SemiFunc.CosmeticType forType,
                               Action<List<CosmeticOffsetEntry>>? onPreview,
                               Transform? parentPopupTransform,
                               bool worldMode,
-                              Action<bool>? onDeathHeadTrigger)
+                              Action<bool>? onDeathHeadTrigger,
+                              CosmeticRestPose rest)
     {
         var working = pendingOffsets.Select(e => e.Clone()).ToList();
         CosmeticCustomCondition.Type[]? triggers = null;
         if (!worldMode) OffsetTriggers.TryGetValue(forType, out triggers);
-        ShowInternal(pendingOffsets, working, triggers, worldMode, forType, onPreview, parentPopupTransform, onDeathHeadTrigger);
+        ShowInternal(pendingOffsets, working, triggers, worldMode, forType, rest, onPreview, parentPopupTransform, onDeathHeadTrigger);
     }
 
     private static void ShowInternal(
@@ -172,6 +175,7 @@ internal static class CosmeticOffsetPopup
         CosmeticCustomCondition.Type[]? triggers,
         bool worldMode,
         SemiFunc.CosmeticType forType,
+        CosmeticRestPose rest,
         Action<List<CosmeticOffsetEntry>>? onPreview = null,
         Transform? parentPopupTransform = null,
         Action<bool>? onDeathHeadTrigger = null)
@@ -302,6 +306,7 @@ internal static class CosmeticOffsetPopup
                             WorldMode = worldMode,
                             OnDeathHeadTrigger = onDeathHeadTrigger,
                             LockedTrigger = locked,
+                            Rest = rest,
                         }));
                 }, row, new Vector2(EntryEditX, 0f));
 
@@ -366,6 +371,7 @@ internal static class CosmeticOffsetPopup
                         ParentPopupTransform = parentPopupTransform ?? popup.transform,
                         WorldMode = worldMode,
                         OnDeathHeadTrigger = onDeathHeadTrigger,
+                        Rest = rest,
                     }));
             }, row, new Vector2(BtnCancelX, 0f));
             return row;
