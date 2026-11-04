@@ -179,6 +179,7 @@ internal sealed class MiniSemibotFace : MonoBehaviour
         _audio.minDistance = 1f;
         _audio.maxDistance = 20f;
         _audio.volume = 1f;
+        _audio.outputAudioMixerGroup = MiniSemibotMimicAudio.VoiceGroup;
     }
 
     // Jaw from the speech envelope at the playback position, AUTO-NORMALISED per clip (quiet recordings open the mouth fully). Read from the raw samples, so it's independent of playback volume / 3D distance.
