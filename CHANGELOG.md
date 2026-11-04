@@ -16,6 +16,7 @@
 - Fixed the Mini-Semibot in the expression preview keeping old custom colors after editing them in-game
 - Fixed the Mini-Semibot's Mimic Clips being almost silent: they now play through the game's voice channel, about as loud as a player's voice, and follow its volume
 - The Mini-Semibot copies in the expression preview and the menus no longer speak Mimic Clips on their own, which other players could hear from your mini: they now mouth along with the real one
+- Fixed the Mini-Semibot running off to the center of the map while you stood against certain objects
 - Fixed the head in the main menu's news popup not showing your custom head color
 - Fixed Back and ESC closing every open popup at once: they now close only the popup on top, the same way as its Cancel or Back button
 - Fixed the last rows of some popups, like the variant picker, being cut off with no way to scroll to them

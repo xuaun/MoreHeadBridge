@@ -331,6 +331,7 @@ internal sealed class MiniSemibotFollow : MonoBehaviour
         {
             var h = _wallHits[i];
             if (h.collider == null) continue;
+            if (h.distance <= 0f) continue;   // Already overlapping when the sweep starts: Unity reports these at the world origin, and a plain SphereCast skips them
             // The "Health Grab" heal target isn't a wall: it's a StaticGrabObject copying the wearer's transform (not parented under the player), so skip it — else crouching yanked the mini.
             if (h.collider.GetComponentInParent<PlayerHealthGrab>() != null) continue;
             var pgo = h.collider.GetComponentInParent<PhysGrabObject>();
