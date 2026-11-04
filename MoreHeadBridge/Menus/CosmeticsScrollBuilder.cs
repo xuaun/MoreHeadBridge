@@ -278,6 +278,13 @@ internal static class CosmeticsScrollBuilder
         grid.padding = new RectOffset(grid.padding.left, grid.padding.right, grid.padding.top, 0);
 
         int shown = PopulateSectionButtons(page, section, assetList);
+        if (shown == 0)
+        {
+            // Another mod hides every button of this section (LazyCosmeticGrid).
+            Object.Destroy(sectionGO);
+            return null;
+        }
+
         ApplySectionSize(section, shown);
         return section;
     }
@@ -400,6 +407,12 @@ internal static class CosmeticsScrollBuilder
             section.highlightObj.gameObject.SetActive(false);
 
         int shownWorld = PopulateSectionButtons(page, section, worldAssets);
+        if (shownWorld == 0)
+        {
+            Object.Destroy(sectionGO);
+            return 0;
+        }
+
         ApplySectionSize(section, shownWorld);
 
         var sectionRect = sectionGO.GetComponent<RectTransform>();
@@ -543,7 +556,7 @@ internal static class CosmeticsScrollBuilder
         }
     }
 
-    private static void ApplySectionSize(MenuElementCosmeticSection section, int count)
+    internal static void ApplySectionSize(MenuElementCosmeticSection section, int count)
     {
         var grid    = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
         int columns = Mathf.Max(1, grid.constraintCount);

@@ -12,6 +12,8 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
 
     private static readonly Vector3[] Corners = new Vector3[4];
     private static readonly LazyFieldRef<MenuScrollBox, float> _minSelectablePos = new("minSelectablePos", "controller scrolling to the end of the cosmetics list");
+    private static readonly LazyFieldRef<MenuScrollBox, float> _scrollHandleTarget = new("scrollHandleTargetPosition", "keeping the cosmetics list in place when a mod hides buttons");
+    private static readonly LazyFieldRef<MenuScrollBox, float> _cullScrollerY = new("lastScrollerY", "keeping the cosmetics list in place when a mod hides buttons");
 
     // Cosmetics whose button another mod hid: later builds leave them out, so the gap doesn't happen again.
     private static readonly HashSet<CosmeticAsset> _hiddenByMods = [];
@@ -19,7 +21,7 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
     private static MenuPageCosmetics? _activePage;
     private static int _builtFrame;
     private static float _lastScrollerY;
-    private static bool _dirty, _settling;
+    private static bool _dirty, _settling, _reflow;
 
     private readonly List<MenuElementCosmeticButton?> _buttons = [];
     private MenuPageCosmetics _page = null!;
@@ -28,6 +30,7 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
     private GridLayoutGroup _grid = null!;
     private List<(CosmeticAsset rep, List<CosmeticGrouping.Member>? members)> _items = null!;
     private int _firstRow, _lastRow = -1;
+    private int _bottomPadding;   // ApplyStickyPadding replaces it on the tab's last section
 
     internal IReadOnlyList<(CosmeticAsset rep, List<CosmeticGrouping.Member>? members)> Items => _items;
     internal int Count => _items.Count;
@@ -49,6 +52,7 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
         lazy._list = (RectTransform)section.cosmeticListTransform;
         lazy._grid = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
         lazy._grid.enabled = false;
+        lazy._bottomPadding = lazy._grid.padding.bottom;
         lazy._items = items;
 
         lazy._buttons.Add(section.unequipButton);
@@ -58,6 +62,7 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
         _activePage = page;
         _builtFrame = Time.frameCount;
         _dirty = true;
+        _reflow = false;
         return lazy;
     }
 
@@ -84,6 +89,12 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
         // RecalculateScrollHeightAfterFrame only puts the scroller in place on the frame after the build.
         if (Time.frameCount == _builtFrame) return;
 
+        if (_reflow)
+        {
+            _reflow = false;
+            Reflow(page, box);
+        }
+
         float y = box.scroller.localPosition.y;
         bool moved = !Mathf.Approximately(y, _lastScrollerY);
         if (!moved && !_dirty && !_settling) return;
@@ -104,7 +115,103 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
             var lazy = section.GetComponent<LazyCosmeticGrid>();
             if (lazy != null) changed |= lazy.Refresh(viewport);
         }
-        if (changed) CosmeticsMenuNav.WireSections(page);
+        if (changed)
+        {
+            _settling = true;
+            CosmeticsMenuNav.WireSections(page);
+        }
+    }
+
+    // After a drop that changed a section's height: closes the gaps, as the build would have. A virtual tab only lists sections with something in them.
+    private static void Reflow(MenuPageCosmetics page, MenuScrollBox box)
+    {
+        if (page.selectedTab != MenuPageCosmetics.CosmeticPageTab.Cosmetics) return;
+
+        bool isVirtual = CosmeticsMenuState.IsVirtual(page.selectedCategory);
+        bool removed = false;
+        float y = 0f;
+        MenuElementCosmeticSection? last = null;
+
+        for (int i = 0; i < page.sections.Count; i++)
+        {
+            var section = page.sections[i];
+            if (section == null) continue;
+
+            var lazy = section.GetComponent<LazyCosmeticGrid>();
+            if (lazy == null) continue;
+
+            if (isVirtual && lazy.Count == 0)
+            {
+                page.sections.RemoveAt(i--);
+                foreach (var button in page.subCategoriesTransform.GetComponentsInChildren<MenuElementButtonCosmeticCategory>(true))
+                    if (button.subCategory == section.subCategory) Destroy(button.gameObject);
+                Destroy(section.gameObject);
+                removed = true;
+                continue;
+            }
+
+            lazy._grid.padding.bottom = lazy._bottomPadding;
+            CosmeticsScrollBuilder.ApplySectionSize(section, lazy.Count);
+
+            var rect = (RectTransform)section.transform;
+            rect.localPosition = new Vector3(rect.localPosition.x, y, rect.localPosition.z);
+            y -= rect.sizeDelta.y + CosmeticsFilterPatch.SectionSpacing;
+            last = section;
+        }
+
+        // The tab's empty message comes from the build.
+        if (page.sections.Count == 0)
+        {
+            page.RefreshScrollContent();
+            return;
+        }
+
+        CosmeticsScrollBuilder.ApplyStickyPadding(page, last);
+        RecalculateKeepingPosition(box);
+        _dirty = true;
+
+        if (removed)
+        {
+            if (page.stickyHeader != null) page.stickyHeader.SetSections();
+            page.StartCoroutine(CosmeticsMenuNav.WireSectionsNextFrame(page));
+        }
+    }
+
+    // RecalculateScrollHeight puts the list back at the top. This keeps it where it was, as far as the new height allows.
+    private static void RecalculateKeepingPosition(MenuScrollBox box)
+    {
+        float y = box.scrollBar.activeSelf
+            ? Mathf.Lerp(box.scrollerStartPosition, box.scrollerEndPosition, box.scrollAmount)
+            : box.scrollerEndPosition;
+
+        box.RecalculateScrollHeight();
+
+        // Sections that moved into view are still off: MenuScrollBox only checks them when the scroller moves.
+        _cullScrollerY.TrySet(box, float.NaN);
+
+        if (!box.scrollBar.activeSelf)
+        {
+            var scrollerPos = box.scroller.localPosition;
+            box.scroller.localPosition = new Vector3(scrollerPos.x, box.scrollerEndPosition, scrollerPos.z);
+            return;
+        }
+
+        float amount = Mathf.InverseLerp(box.scrollerStartPosition, box.scrollerEndPosition, y);
+        float halfHandle = box.scrollHandle.sizeDelta.y / 2f;
+        float handleY = Mathf.Lerp(halfHandle, box.scrollBarBackground.rect.height - halfHandle, amount);
+
+        var handlePos = box.scrollHandle.localPosition;
+        box.scrollHandle.localPosition = new Vector3(handlePos.x, handleY, handlePos.z);
+        _scrollHandleTarget.TrySet(box, handleY);
+        box.scrollAmount = amount;
+
+        // A navigation's scroll was on its way to where the selection used to be.
+        if (box.isAnimating)
+        {
+            box.isAnimating = false;
+            var selected = MenuManager.instance != null ? MenuManager.instance.currentMenuIDTransform : null;
+            if (selected != null && selected.IsChildOf(box.scroller)) box.ScrollToChild(selected);
+        }
     }
 
     // RecalculateScrollHeight only sees the rows that exist, and would take the last one created for the end of the list.
@@ -216,6 +323,7 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
     private bool DropButtonsHiddenByMods()
     {
         int cols = Columns;
+        int rowsBefore = Rows;
         bool dropped = false;
         for (int slot = Mathf.Min((_lastRow + 1) * cols, Slots) - 1; slot >= Mathf.Max(1, _firstRow * cols); slot--)
         {
@@ -241,6 +349,9 @@ internal sealed class LazyCosmeticGrid : MonoBehaviour
         }
         for (int row = _firstRow; row <= _lastRow; row++)
             ShowRow(row);
+
+        // On the next frame: RecalculateScrollHeight would still count the buttons destroyed in this one.
+        _reflow |= Rows != rowsBefore || Count == 0;
         return true;
     }
 

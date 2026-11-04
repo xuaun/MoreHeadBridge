@@ -19,6 +19,7 @@
 - Fixed the last rows of some popups, like the variant picker, being cut off with no way to scroll to them
 - Fixed the selection jumping to the top when moving quickly through a popup with a controller or keyboard
 - Fixed rows overlapping in the color animation popup when using a controller or keyboard in Rainbow mode
+- With `FixCosmeticsMenuPerformance` on, cosmetics hidden by another mod, like YoshiCarry's duplicates, no longer leave empty sections or gaps
 - Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
 - The icon batch generator now names each cosmetic it couldn't capture, with its category
 - Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
