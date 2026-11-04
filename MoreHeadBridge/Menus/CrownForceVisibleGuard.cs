@@ -7,18 +7,15 @@ namespace MoreHeadBridge;
 internal sealed class CrownForceVisibleGuard : MonoBehaviour
 {
     private PlayerCrown? _playerCrown;
+    private GameObject? _cosmeticGo;
     private CosmeticPlayerCrown? _cosmeticPlayerCrown;
 
-    /// Attaches the guard to <paramref name="playerCrown"/>'s GO.
-    /// Returns null if no CosmeticPlayerCrown is found on the cosmetic.
-    internal static CrownForceVisibleGuard? Attach(PlayerCrown playerCrown, GameObject cosmeticGo)
+    /// Attaches the guard to <paramref name="playerCrown"/>'s GO. Without a cosmetic on the preview, the crown stays at its default position.
+    internal static CrownForceVisibleGuard Attach(PlayerCrown playerCrown, GameObject? cosmeticGo)
     {
-        var cosmeticPlayerCrown = cosmeticGo.GetComponentInChildren<CosmeticPlayerCrown>(true);
-        if (cosmeticPlayerCrown == null) return null;
-
         var guard = playerCrown.gameObject.AddComponent<CrownForceVisibleGuard>();
         guard._playerCrown = playerCrown;
-        guard._cosmeticPlayerCrown = cosmeticPlayerCrown;
+        guard._cosmeticGo = cosmeticGo;
         return guard;
     }
 
@@ -27,7 +24,13 @@ internal sealed class CrownForceVisibleGuard : MonoBehaviour
         if (_playerCrown == null || _playerCrown.crownMesh == null) return;
 
         // Replicate PlayerCrown.FollowLogic (keep crown at its target) — DisableLogic returns true for the preview avatar so FollowLogic never runs.
-        var target = _cosmeticPlayerCrown?.targetMain ?? _playerCrown.defaultPosition;
+        // A cosmetic without a CosmeticPlayerCrown only gets one from the popup's first preview.
+        if (_cosmeticPlayerCrown == null && _cosmeticGo != null)
+            _cosmeticPlayerCrown = _cosmeticGo.GetComponentInChildren<CosmeticPlayerCrown>(true);
+
+        var target = _cosmeticPlayerCrown != null && _cosmeticPlayerCrown.targetMain != null
+            ? _cosmeticPlayerCrown.targetMain
+            : _playerCrown.defaultPosition;
         if (target != null)
         {
             _playerCrown.transform.position = target.position;

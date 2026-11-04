@@ -681,9 +681,8 @@ internal static partial class CosmeticOverridePopup
                 {
                     // Attach the guard that keeps the crown visible and positioned while Crown Settings is open; destroyed on any close path (Done/Clear/Cancel).
                     CrownForceVisibleGuard? crownGuard = null;
-                    var cosmeticGo = preview.FindPreviewCosmeticGo();
-                    if (cosmeticGo != null && preview.PreviewPc?.playerCrown != null)
-                        crownGuard = CrownForceVisibleGuard.Attach(preview.PreviewPc.playerCrown, cosmeticGo);
+                    if (preview.PreviewPc?.playerCrown != null)
+                        crownGuard = CrownForceVisibleGuard.Attach(preview.PreviewPc.playerCrown, preview.FindPreviewCosmeticGo());
 
                     void CleanupGuard()
                     {
@@ -701,7 +700,8 @@ internal static partial class CosmeticOverridePopup
                         onClear: () => { pendingCrown = null; CleanupGuard(); preview.RefreshCrown(null); },
                         onPreview: config => preview.RefreshCrown(config),
                         onCancel: CleanupGuard,
-                        parentPopupTransform: popup.transform);
+                        parentPopupTransform: popup.transform,
+                        displayToStored: preview.CrownDisplayToStored());
                 }, row, new Vector2(BtnCrownX, 0f));
                 return crownRow = row;
             }, topPadding: BtnTopGap);

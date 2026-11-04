@@ -19,6 +19,8 @@
 - Fixed the last rows of some popups, like the variant picker, being cut off with no way to scroll to them
 - Fixed the selection jumping to the top when moving quickly through a popup with a controller or keyboard
 - Fixed rows overlapping in the color animation popup when using a controller or keyboard in Rainbow mode
+- Fixed the crown not showing in the Crown Settings preview on cosmetics that had no crown data
+- Fixed Crown Settings on many cosmetics whose model is off-center, scaled or turned: the crown started far from the head, and the sliders barely moved it or moved it too much. Positions you already saved stay where they are
 - With `FixCosmeticsMenuPerformance` on, cosmetics hidden by another mod, like YoshiCarry's duplicates, no longer leave empty sections or gaps
 - Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
 - The icon batch generator now names each cosmetic it couldn't capture, with its category

@@ -447,6 +447,18 @@ internal sealed class CosmeticOverridePreview : MonoBehaviour
         }
     }
 
+    /// Maps a Crown Settings position (from the vanilla default crown position, along the anchor's axes) to the frame CosmeticCrownConfig is stored in, the cosmetic's root. Null without the cosmetic on the preview.
+    internal Matrix4x4? CrownDisplayToStored()
+    {
+        var go = FindPreviewCosmeticGo();
+        var crownDefault = PreviewPc != null && PreviewPc.playerCrown != null ? PreviewPc.playerCrown.defaultPosition : null;
+        if (go == null || go.transform.parent == null || crownDefault == null) return null;
+
+        var anchor = go.transform.parent;
+        return go.transform.worldToLocalMatrix
+             * Matrix4x4.TRS(crownDefault.position, anchor.rotation, anchor.lossyScale);
+    }
+
     /// In-place crown update — no re-instantiation needed.
     internal void RefreshCrown(CosmeticCrownConfig? crown)
     {

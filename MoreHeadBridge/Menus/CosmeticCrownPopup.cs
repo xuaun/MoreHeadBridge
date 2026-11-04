@@ -1,4 +1,4 @@
-// Popup for the crown target on Hat/HeadTopMesh bridge cosmetics ("Crown Settings →"). Display values are RELATIVE to the vanilla bare-head default; stored values add a fixed offset (Y +0.35, Z +0.25).
+// Popup for the crown target on Hat/HeadTopMesh bridge cosmetics ("Crown Settings →"). Display values are RELATIVE to the vanilla bare-head default; stored values are relative to the cosmetic's root.
 
 using MenuLib;
 using MenuLib.MonoBehaviors;
@@ -12,9 +12,8 @@ namespace MoreHeadBridge;
 internal static class CosmeticCrownPopup
 {
     // ── Display ↔ internal offset ─────────────────────────────────────────────
-    // Internal pos = display pos + offset; (0,0,0) display maps to the vanilla bare-head default crown position.
-    private const float PosYOffset = 0.35f;
-    private const float PosZOffset = 0.25f;
+    // (0,0,0) display maps to the vanilla bare-head default crown position. This is the mapping for a root on its anchor: many prefabs keep the root far from the mesh, scaled or turned, so the preview passes the real one.
+    private static readonly Matrix4x4 AnchoredRootMapping = Matrix4x4.Translate(new Vector3(0f, 0.35f, 0.25f));
 
     // ── Layout ────────────────────────────────────────────────────────────────
     private const float PopupX    = -120f;
@@ -46,6 +45,7 @@ internal static class CosmeticCrownPopup
     /// existing: config to edit, or null to create. cosmeticType: sets the priority default (Hat→0, HeadTopMesh→−50).
     /// onDone: fires with the config on Done. onClear: fires on Clear Crown (not on Cancel).
     /// onPreview: fires on every slider change with the uncommitted config; null on Cancel (revert).
+    /// displayToStored: maps the displayed position to the stored one, when the preview has the cosmetic.
     // Build deferred to mouse-release: a fresh ACTIVE page would let a REPOSlider under the held click get scrubbed (see PopupUI.AfterMouseRelease).
     internal static void Show(
         CosmeticCrownConfig? existing,
@@ -54,9 +54,11 @@ internal static class CosmeticCrownPopup
         Action? onClear = null,
         Action<CosmeticCrownConfig?>? onPreview = null,
         Transform? parentPopupTransform = null,
-        Action? onCancel = null)
+        Action? onCancel = null,
+        Matrix4x4? displayToStored = null)
         => PopupUI.AfterMouseRelease(Plugin.Instance, () => ShowNow(
-            existing, cosmeticType, onDone, onClear, onPreview, parentPopupTransform, onCancel));
+            existing, cosmeticType, onDone, onClear, onPreview, parentPopupTransform, onCancel,
+            displayToStored ?? AnchoredRootMapping));
 
     private static void ShowNow(
         CosmeticCrownConfig? existing,
@@ -65,11 +67,15 @@ internal static class CosmeticCrownPopup
         Action? onClear,
         Action<CosmeticCrownConfig?>? onPreview,
         Transform? parentPopupTransform,
-        Action? onCancel)
+        Action? onCancel,
+        Matrix4x4 displayToStored)
     {
-        float displayX = existing?.PosX ?? 0f;
-        float displayY = existing != null ? existing.PosY - PosYOffset : 0f;
-        float displayZ = existing != null ? existing.PosZ - PosZOffset : 0f;
+        var shown = existing != null
+            ? displayToStored.inverse.MultiplyPoint3x4(new Vector3(existing.PosX, existing.PosY, existing.PosZ))
+            : Vector3.zero;
+        float displayX = shown.x;
+        float displayY = shown.y;
+        float displayZ = shown.z;
         float rotX        = existing?.RotX        ?? 0f;
         float rotY        = existing?.RotY        ?? 0f;
         float rotZ        = existing?.RotZ        ?? 0f;
@@ -89,12 +95,27 @@ internal static class CosmeticCrownPopup
 
         PopupUI.AttachGuards(popup, parentPopupTransform);
 
+        CosmeticCrownConfig CurrentConfig()
+        {
+            var stored = displayToStored.MultiplyPoint3x4(new Vector3(displayX, displayY, displayZ));
+            return new CosmeticCrownConfig
+            {
+                PosX          = stored.x,
+                PosY          = stored.y,
+                PosZ          = stored.z,
+                RotX          = rotX,
+                RotY          = rotY,
+                RotZ          = rotZ,
+                ScaleX        = scaleX,
+                ScaleY        = scaleY,
+                ScaleZ        = scaleZ,
+                Priority      = priority,
+                DisableSpring = disableSpring,
+            };
+        }
+
         // Helper: fires onPreview with current display values after every slider change.
-        void Preview() => FirePreview(onPreview,
-            displayX, displayY, displayZ,
-            rotX, rotY, rotZ,
-            scaleX, scaleY, scaleZ,
-            priority, disableSpring);
+        void Preview() => onPreview?.Invoke(CurrentConfig());
 
         // ── Position sliders ──────────────────────────────────────────────────
         PopupUI.AddFloatSlider(popup, "Pos X", PosOptions, displayX, v => { displayX = v; Preview(); }, TitleGap);
@@ -154,20 +175,7 @@ internal static class CosmeticCrownPopup
             MenuAPI.CreateREPOButton("Done", () =>
             {
                 popup.ClosePage(false);
-                onDone(new CosmeticCrownConfig
-                {
-                    PosX         = displayX,
-                    PosY         = displayY + PosYOffset,   // display → internal
-                    PosZ         = displayZ + PosZOffset,
-                    RotX         = rotX,
-                    RotY         = rotY,
-                    RotZ         = rotZ,
-                    ScaleX       = scaleX,
-                    ScaleY       = scaleY,
-                    ScaleZ       = scaleZ,
-                    Priority     = priority,
-                    DisableSpring = disableSpring,
-                });
+                onDone(CurrentConfig());
             }, row, new Vector2(BtnDoneX, 0f));
 
             return row;
@@ -179,25 +187,6 @@ internal static class CosmeticCrownPopup
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static void FirePreview(
-        Action<CosmeticCrownConfig?>? onPreview,
-        float displayX, float displayY, float displayZ,
-        float rotX, float rotY, float rotZ,
-        float scaleX, float scaleY, float scaleZ,
-        int priority, bool disableSpring)
-    {
-        onPreview?.Invoke(new CosmeticCrownConfig
-        {
-            PosX = displayX,
-            PosY = displayY + PosYOffset,
-            PosZ = displayZ + PosZOffset,
-            RotX = rotX, RotY = rotY, RotZ = rotZ,
-            ScaleX = scaleX, ScaleY = scaleY, ScaleZ = scaleZ,
-            Priority = priority,
-            DisableSpring = disableSpring,
-        });
-    }
 
     private static string[] BuildRange(float min, float max, float step, string fmt)
     {

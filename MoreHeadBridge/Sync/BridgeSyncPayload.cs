@@ -159,9 +159,10 @@ internal sealed class BridgeSyncPayload
 
         if (Crown != null)
         {
-            Crown.PosX = Mathf.Clamp(Crown.PosX, -100f, 100f);
-            Crown.PosY = Mathf.Clamp(Crown.PosY, -100f, 100f);
-            Crown.PosZ = Mathf.Clamp(Crown.PosZ, -100f, 100f);
+            // Relative to the cosmetic's root, which can be far from the mesh and scaled down to 0.01.
+            Crown.PosX = Mathf.Clamp(Crown.PosX, -10000f, 10000f);
+            Crown.PosY = Mathf.Clamp(Crown.PosY, -10000f, 10000f);
+            Crown.PosZ = Mathf.Clamp(Crown.PosZ, -10000f, 10000f);
             Crown.RotX = Mathf.Clamp(Crown.RotX, -360f, 360f);
             Crown.RotY = Mathf.Clamp(Crown.RotY, -360f, 360f);
             Crown.RotZ = Mathf.Clamp(Crown.RotZ, -360f, 360f);
