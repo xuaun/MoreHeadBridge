@@ -598,10 +598,10 @@ public partial class Plugin
                           "             fallback icons.\n" +
                           "\n" +
                           "PNG cache lives in:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Delete that folder to wipe all generated icons.\n" +
-                          "(Icons are stored in Cache\\Icons\\CosmeticsModded\\ — a sibling of the vanilla\n" +
-                          " Cache\\Icons\\Cosmetics\\ that REPOLib wipes, so ours are never touched.)"
+                          "(It stays out of Cache\\Icons\\, which the game empties on every new game\n" +
+                          " version and REPOLib partly wipes on each launch.)"
         );
 
         GenerateAllIcons = Config.Bind(
@@ -701,7 +701,7 @@ public partial class Plugin
             key: "DeleteIconCache",
             defaultValue: false,
             description: "ONE-SHOT trigger. When TRUE on launch, delete cached bridge icon PNGs from:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Use DeleteIconsMatching to filter which ones to delete.\n" +
                           "Without a filter, also deletes the saved icons of other cosmetic mods from:\n" +
                           "  BepInEx\\cache\\MoreHeadBridge\\RenderedIcons\\\n" +

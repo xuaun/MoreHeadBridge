@@ -27,7 +27,11 @@ internal static class BridgeIconResolver
         }
 
         if (IconCapture.HasCache(asset))
-            return asset.icon = SemiFunc.LoadSpriteFromFile(IconCapture.CachePathFor(asset));
+        {
+            var cached = SemiFunc.LoadSpriteFromFile(IconCapture.CachePathFor(asset));
+            if (cached != null) return asset.icon = cached;
+            IconCapture.Forget(asset);
+        }
 
         if (Plugin.UseTextureAsPlaceholder.Value &&
             HhhCosmeticLoader.BridgeIconTextures.TryGetValue(asset.assetId, out var tex) && tex != null)
