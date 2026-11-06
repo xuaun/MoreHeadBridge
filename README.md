@@ -16,6 +16,7 @@ Translates `.hhh` cosmetics (from [MoreHead](https://thunderstore.io/c/repo/p/YM
 - **Equip more than one** of the same type (two hats, several body pieces, multiple worlds).
 - **World cosmetics** in a dedicated **WORLD** tab, that orbit and follow you around.
 - **Favorite and Hide** cosmetics, **search** by name, and a **SELECTED** tab that shows only what you're wearing.
+- **Full controller and keyboard navigation** — the cosmetics menu, color page and popups, with shortcuts and the game's own button icons.
 - **A deep Cosmetic Customizer** (Shift + click): rarity, category, tinting, jiggle physics, crown, condition flags, position offsets and Death Head behavior — all per cosmetic.
 - **Plays nice with everything** — REPOLib is the only hard dependency; MenuLib, MoreHead, MoreHeadUtilities and BCE are all optional.
 
@@ -35,7 +36,7 @@ Equip the **Mini-Semibot** (in the **WORLD** tab) to spawn a cute small copy of 
 - **Outfit** — _Same As You_ (mirrors your live outfit, updating as you change) or _Random Preset_ (a random saved cosmetics preset, re-rolled each time you equip it).
 - **Gaze** — a _Menu_ look-at (At Mouse / Copy Avatar / Still) for how it watches you in menus, and a separate _In-Game_ gaze (Same Target / Copy Head). _Idle Glance_ makes it softly look around when idle so it reads as "alive".
 - **Movement** — _Follow Smoothing_ (Off / Soft / Bouncy) for how it eases after you, _Avoid Walls_ so it squeezes past geometry, climbs stairs and stops at ledges, _Leg Speed_ for how fast its little legs scramble, and _State Effects_ so it flashes when you take damage / heal / upgrade.
-- **Face & sound** — _Mouth_ modes: Never / Random chatter / When I Talk (tracks your live voice) / **Mimic Clips** (plays the voice lines the **Mimic** mod recorded — requires that mod), with adjustable Chatter, Voice Volume and Voice Range. Optional _Footstep Sounds_ at its feet.
+- **Face & sound** — _Mouth_ modes: Never / Random chatter / When I Talk (tracks your live voice) / **Mimic Clips** (plays the voice lines the **Mimic** mod recorded through the game's voice channel — requires that mod), with adjustable Chatter, Voice Volume and Voice Range. Optional _Footstep Sounds_ at its feet.
 - **Hands** — what it carries: _Clean Arm_, _Orb_, or _Orb + Light_ with the grabber beam (plus a _Beam Color_ option when CustomGrabColor is installed). It auto-pulls its own _Flashlight_ whenever yours is out.
 - **When you die** — _Death Head_ (slumps at your death-head), _Crouch & Wait_, or _Hide_. _Hide on Kart_ tucks it away during the King of the Losers arena (it's cramped in there).
 - **Extras** — show it in the facial-**Expression Preview** (the 5–9 keys panel), and **Recapture Icon** to re-photograph its menu icon with your current colors.
@@ -48,7 +49,7 @@ When you explode in an **arena**, the Mini-Semibot explodes too — same blast, 
 
 ### Favorites & Hidden
 
-- **Ctrl + click** any cosmetic to toggle it as a **favorite**, **Alt + click** to **hide** it.
+- **Ctrl + click** any cosmetic to toggle it as a **favorite**, **Alt + click** to **hide** it. Change these keys with the `[CosmeticsMenuShortcuts]` options.
 - Dedicated **FAV** and **HIDE** tabs appear in the category strip.
 - Hidden cosmetics are excluded from other categories and from Randomize.
 
@@ -76,6 +77,13 @@ When you explode in an **arena**, the Mini-Semibot explodes too — same blast, 
 <p align="center">
   <img src="https://raw.githubusercontent.com/xuaun/MoreHeadBridge/main/img/color-picker.png" alt="The color picker with the per-material slot selector" title="The color picker with the per-material slot selector" width="540">
 </p>
+
+### Controller and keyboard
+
+- The cosmetics menu, the color page and the bridge's popups can all be navigated with a controller or keyboard, including the **SEARCH**, **SELECTED**, **FAV**, **HIDE** and **WORLD** tabs, the **Tools** button and the color buttons.
+- On the selected cosmetic, the **top face button** opens the customizer, the **left face button** favorites it and the **right trigger** hides it. Change them or turn them off with the `[CosmeticsMenuShortcuts]` options.
+- Menu hints show the game's own icons for your controller and follow those options.
+- On **SEARCH**, confirm opens Steam's gamepad keyboard when it's available. Otherwise it focuses the field for a physical keyboard.
 
 ### Quality of life
 
@@ -118,13 +126,17 @@ Since `.hhh` cosmetics don't ship icons, the mod generates one for each via a fa
 
 Generate every missing icon at once with **Tools → Generate Icons** (or `GenerateAllIcons`). The batch shows progress, can be interrupted (ESC or closing the menu), and resumes where it left off.
 
-Icons are cached outside the vanilla cosmetics cache (which REPOLib wipes every launch):
+Icons are cached outside the game's icon cache, which the game empties on every new game version and REPOLib partly wipes on each launch:
 
 ```
-%userprofile%\AppData\LocalLow\semiwork\REPO\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\
+%userprofile%\AppData\LocalLow\semiwork\REPO\Cache\MoreHeadBridge_CosmeticsIcons\
 ```
 
 Delete that folder, or use `DeleteIconCache`, to wipe all generated icons.
+
+Cosmetics with no mesh of their own, like eyes that only hide the pupils, get an icon from a photo of the avatar.
+
+Icons of cosmetics from **other mods** are rendered by the game, what's on screen first, and saved per profile in `BepInEx/cache/MoreHeadBridge/RenderedIcons/`, so later sessions load them instead of rendering them again (`SaveModdedIconsToDisk`). **Clear All Icons** and `DeleteIconCache` without a filter delete them too.
 
 > **Upgrading from v1.0.0?** The cache used to live at `MoreHeadBridge_Icons\`. It migrates automatically on first launch — no action needed.
 
@@ -153,8 +165,10 @@ Since the vanilla menu has more specific slots than MoreHead, this mapping is us
 
 ## Installation
 
+> **Requires R.E.P.O. v0.5.1 and REPOLib 4.3.0.** On game versions before the Sunstone Update (v0.5.0), use MoreHead Bridge v3.0.1.
+
 1. Install via Thunderstore / r2modman (dependencies resolve automatically).
-2. **MenuLib** is a soft dependency — install it if you want the Cosmetic Customizer / Sync Customizer UI.
+2. **MenuLib** is a soft dependency — install it if you want the Cosmetic Customizer / Sync Customizer UI. On R.E.P.O. v0.5.1, use MenuLib 2.6.2 or newer, or the popup sliders and toggles won't line up.
 3. Make sure you have some **`.hhh`** cosmetic files in `BepInEx/plugins` (e.g. from MoreHead or any cosmetics pack).
 4. Launch the game — bridged cosmetics appear in the vanilla cosmetics menu on first load.
 
@@ -183,13 +197,28 @@ Config file: `BepInEx/config/Xuaun.MoreHeadBridge.cfg`
 
 | Option                             | Default | Description                                                                                                                                                                                                                       |
 | ---------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **EnableMenuEnhancements**         | `true`  | Enables the extended cosmetics menu: virtual tabs (SEARCH, SELECTED, FAV, HIDE), Ctrl+click to favorite, Alt+click to hide, live search bar, and name tooltip on hover. Set to `false` for the unmodified vanilla menu.           |
+| **EnableMenuEnhancements**         | `true`  | Enables the extended cosmetics menu: virtual tabs (SEARCH, SELECTED, FAV, HIDE), click shortcuts to favorite and hide, live search bar, and name tooltip on hover. Set to `false` for the unmodified vanilla menu.           |
 | **ShowToolsButton**                | `true`  | Show the **Tools** dropdown in the cosmetics menu (Generate Icons, Clear All Icons, Sync Customizer).                                                                                                                             |
 | **GroupCosmeticVariants**          | `false` | Collapse families that differ only by a variant (RepoPride flags, MoreHead color variants) into a single menu button — click it to pick the variant. Requires MenuLib. `false` shows every variant as its own button.             |
 | **HideMoreHeadButton**             | `false` | Remove the MoreHead button from all menus. Applies instantly when toggled — no restart needed.                                                                                                                                    |
 | **HideMoreHeadDecorations**        | `false` | Hide the decorations you equipped through the MoreHead menu on player avatars. Owner-authoritative and synced (other players running this mod won't render yours either). Bridge/vanilla cosmetics unaffected. Applies instantly. |
 | **ExcludeMoreHeadFromPresetIcons** | `false` | Leave MoreHead-menu decorations out of the saved preset **preview image**, so a preset thumbnail shows only the cosmetics that preset stores. Local only. Re-save (or clear the cached icon) to refresh a thumbnail.              |
 | **SearchFieldPosition**            | `Top`   | Where the search bar appears. `Top` = above the category strip. `Bottom` = at the bottom of the Semibot.                                                                                                                          |
+
+### [CosmeticsMenuShortcuts]
+
+| Option                      | Default        | Description                                                         |
+| --------------------------- | -------------- | ------------------------------------------------------------------- |
+| **FavoriteClickModifier**   | `Ctrl`         | Which held key makes a click **favorite** a cosmetic: `Ctrl`, `Alt` or `Shift`. |
+| **HideClickModifier**       | `Alt`          | Which held key makes a click **hide** a cosmetic.                   |
+| **CustomizerClickModifier** | `Shift`        | Which held key makes a click open the **Cosmetic Customizer**.      |
+| **FavoriteGamepadButton**   | `LeftButton`   | Which gamepad button **favorites** the selected cosmetic.           |
+| **HideGamepadButton**       | `RightTrigger` | Which gamepad button **hides** the selected cosmetic.               |
+| **CustomizerGamepadButton** | `TopButton`    | Which gamepad button opens the **Cosmetic Customizer** for the selected cosmetic. |
+
+> Gamepad buttons are named by position, because labels differ per controller: `TopButton` is Y on Xbox, Triangle on PlayStation and X on Switch; `LeftButton` is X, Square and Y. The other values are `LeftTrigger`, `RightTrigger`, `LeftStickClick`, `RightStickClick` and `Off`. The right stick also rotates the avatar, so `RightStickClick` is easy to press by accident.
+>
+> Each action needs a different key or button: on a conflict, all three go back to the defaults. On-screen hints follow these options, and they apply without a restart.
 
 ### [Blacklist]
 
@@ -236,6 +265,7 @@ Config file: `BepInEx/config/Xuaun.MoreHeadBridge.cfg`
 | **HighlightModdedCosmetics**      | `false` | Show a purple border on non-bridge modded cosmetics to mark them as coming from another mod. Bridge cosmetics are controlled separately by `HighlightBridgeCosmetics`. Per-cosmetic overrides take priority. |
 | **AutoUnlockModdedCosmetics**     | `false` | Auto-unlock all non-bridge modded cosmetics on every launch. Tracked in a separate file so `ResetModdedUnlocks` can undo exactly these without touching earned unlocks.                                      |
 | **EnableModdedCustomColors**      | `false` | Adds a **"C"** button to the color picker for modded non-bridge cosmetics that support a custom color channel, allowing custom RGB beyond the game's palette.                                                |
+| **SaveModdedIconsToDisk**         | `true`  | Save the icons the game renders for cosmetics from other mods (about 22 KB each, in `BepInEx/cache/MoreHeadBridge/RenderedIcons/`), so later sessions load them instead of rendering them again. When `false`, each session renders them once as they appear. |
 | **AllowModdedCosmeticCustomizer** | `false` | **Advanced / opt-in.** Also open the Cosmetic Customizer popup for modded non-bridge cosmetics (e.g. to remap their category). Requires `EnableCosmeticCustomizer`.                                          |
 | **ResetModdedUnlocks**            | `false` | **One-shot trigger.** Removes only the modded cosmetics unlocked by `AutoUnlockModdedCosmetics`; cosmetics earned through gameplay are untouched. Auto-resets.                                               |
 
@@ -243,7 +273,8 @@ Config file: `BepInEx/config/Xuaun.MoreHeadBridge.cfg`
 
 | Option                          | Default | Description                                                                                                                                                                                                                         |
 | ------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **FixCosmeticsMenuPerformance** | `false` | Enable if you have many cosmetics mods and the vanilla tabs (HEAD/BODY/ARMS/LEGS) stutter or load slowly.                                                                                                                           |
+| **FixCosmeticsMenuPerformance** | `false` | Enable if you have many cosmetics mods and the cosmetics menu is slow to open or to change tabs. Only the buttons near the visible area are created, and the rest appear as you scroll. Leave it off if another mod needs every button of a tab to exist. |
+| **ParallelCosmeticLoading**     | `true`  | Open `.hhh` files in the background at startup, so the game reaches the main menu faster with many cosmetics. It also speeds up MoreHead, without changing it. Set to `false` if another mod has trouble loading `.hhh` files. Takes effect on the next launch. |
 | **RemoveBridgePhysics**         | `true`  | Remove `Collider`/`Rigidbody` from bridge cosmetic prefabs at load time (prevents the rotation bug in the preview menu). Per-cosmetic override takes priority.                                                                      |
 | **LoopBridgeAnimation**         | `true`  | Force `Animation`/`Animator` clips on bridge cosmetics to loop. Per-cosmetic override takes priority.                                                                                                                               |
 | **BridgeEquipAnimationMode**    | `Fixed` | Vanilla equip animation behavior for bridge cosmetics. `Fixed` keeps a small non-zero spawn scale (prevents world animation collapse), `Normal` is vanilla, `Disabled` spawns at final scale. Per-cosmetic override takes priority. |
@@ -310,5 +341,5 @@ If you like this one, I make other cosmetic packs and tools for R.E.P.O. — and
 - **Masaicker & YurisCat** — [MoreHead](https://thunderstore.io/c/repo/p/YMC_MHZ/MoreHead/) (original mod inspiration)
 - **Maygik** — [MoreHeadUtilities](https://thunderstore.io/c/repo/p/Maygik/MoreHeadUtilities/)
 - **Zehs** — [REPOLib](https://thunderstore.io/c/repo/p/Zehs/REPOLib/)
-- **nickklmao** — [MenuLib](https://thunderstore.io/c/repo/p/nickklmao/MenuLib/) (Cosmetic Customizer UI)
+- **nickklmao & REPOModding** — [MenuLib](https://thunderstore.io/c/repo/p/REPOModding/MenuLib/) (Cosmetic Customizer UI)
 - **innominata** — [BepInEx Console Extensions](https://thunderstore.io/c/dyson-sphere-program/p/innominata/BepInEx_Console_Extensions/) (optional mod)

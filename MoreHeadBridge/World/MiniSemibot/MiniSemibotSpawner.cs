@@ -52,6 +52,10 @@ internal static partial class MiniSemibotSpawner
         go.transform.SetParent(null, worldPositionStays: false);
         Object.Destroy(holder);
 
+        // PlayerAvatarMenu.OnEnable turns the rig back on when the avatar activates.
+        if (menu != null && menu.cameraAndStuff != null)
+            menu.cameraAndStuff.gameObject.SetActive(false);
+
         var miniVisuals = go.GetComponentInChildren<PlayerAvatarVisuals>();
 
         // The mini wears a FIXED outfit we drive. The menu-avatar prefab's previewCosmetics/previewColors=true makes Setup*Logic ignore our array and substitute MetaManager's live preview loadout — turn it off so our explicit arrays win.

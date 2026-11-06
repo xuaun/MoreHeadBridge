@@ -21,6 +21,7 @@ internal sealed class OffsetEntryArgs
     internal bool                                  WorldMode;
     internal Action<bool>?                         OnDeathHeadTrigger;
     internal CosmeticCustomCondition.Type?         LockedTrigger;
+    internal CosmeticRestPose                      Rest = CosmeticRestPose.OnAnchor;
     internal Action?                               OnClear;
     internal bool                                  ShowOnDeathHead = true;
     internal Action<bool>?                         OnShowOnDeathHeadPreview;
@@ -137,6 +138,7 @@ internal static class CosmeticOffsetEntryPopup
         var floorPoseSupported       = args.FloorPoseSupported;
         var onFloorPosePreview       = args.OnFloorPosePreview;
         var onFloorPosePreviewEnd    = args.OnFloorPosePreviewEnd;
+        var rest                     = args.Rest;
 
         // "Show on Death Head" toggle only applies in the dedicated death-head editor; tracked locally, committed on Done so Cancel discards.
         bool deathHeadEditor = lockedTrigger == CosmeticCustomCondition.Type.Player_DeathHead
@@ -146,28 +148,47 @@ internal static class CosmeticOffsetEntryPopup
         // Death-head "floor pose" — edited in the Configure Floor Pose sub-editor; cloned so Cancel discards, committed on Done.
         DeathHeadFloorPose? floorLocal = floorPose?.Clone();
         CosmeticCustomCondition.Type? selCondition = lockedTrigger ?? existing?.TriggerType;
-        float posX = existing?.PosX ?? 0f;
-        float posY = existing?.PosY ?? 0f;
-        float posZ = existing?.PosZ ?? 0f;
-        float rotX = existing?.RotX ?? 0f;
-        float rotY = existing?.RotY ?? 0f;
-        float rotZ = existing?.RotZ ?? 0f;
-        float scaleX = existing?.ScaleX ?? 1f;
-        float scaleY = existing?.ScaleY ?? 1f;
-        float scaleZ = existing?.ScaleZ ?? 1f;
+        // The sliders are relative to where the cosmetic rests. Fit triggers are stored that way; the others are stored absolute.
+        var shown = (position: Vector3.zero, rotation: Vector3.zero, scale: Vector3.one);
+        if (existing != null)
+        {
+            shown = (new Vector3(existing.PosX, existing.PosY, existing.PosZ),
+                     new Vector3(existing.RotX, existing.RotY, existing.RotZ),
+                     new Vector3(existing.ScaleX, existing.ScaleY, existing.ScaleZ));
+            if (!OffsetSeedDefaults.IsFitTrigger(existing.TriggerType))
+                shown = rest.ToShown(shown.position, shown.rotation, shown.scale);
+        }
+        float posX = shown.position.x;
+        float posY = shown.position.y;
+        float posZ = shown.position.z;
+        float rotX = shown.rotation.x;
+        float rotY = shown.rotation.y;
+        float rotZ = shown.rotation.z;
+        float scaleX = shown.scale.x;
+        float scaleY = shown.scale.y;
+        float scaleZ = shown.scale.z;
         float speed = existing?.LerpSpeed ?? 3f;
 
         // Builds the current partial entry from live slider state; null until a trigger is selected.
-        CosmeticOffsetEntry? BuildCurrentEntry() => selCondition.HasValue
-            ? new CosmeticOffsetEntry
+        CosmeticOffsetEntry? BuildCurrentEntry()
+        {
+            if (!selCondition.HasValue) return null;
+
+            var stored = (position: new Vector3(posX, posY, posZ),
+                          rotation: new Vector3(rotX, rotY, rotZ),
+                          scale: new Vector3(scaleX, scaleY, scaleZ));
+            if (!OffsetSeedDefaults.IsFitTrigger(selCondition.Value))
+                stored = rest.ToStored(stored.position, stored.rotation, stored.scale);
+
+            return new CosmeticOffsetEntry
             {
                 TriggerType = selCondition.Value,
-                PosX = posX, PosY = posY, PosZ = posZ,
-                RotX = rotX, RotY = rotY, RotZ = rotZ,
-                ScaleX = scaleX, ScaleY = scaleY, ScaleZ = scaleZ,
+                PosX = stored.position.x, PosY = stored.position.y, PosZ = stored.position.z,
+                RotX = stored.rotation.x, RotY = stored.rotation.y, RotZ = stored.rotation.z,
+                ScaleX = stored.scale.x, ScaleY = stored.scale.y, ScaleZ = stored.scale.z,
                 LerpSpeed = speed,
-            }
-            : null;
+            };
+        }
 
         var popup = MenuAPI.CreateREPOPopupPage(
             headerText: lockedTrigger.HasValue
@@ -298,7 +319,8 @@ internal static class CosmeticOffsetEntryPopup
                             onPreview?.Invoke(BuildCurrentEntry()); // restore the offset preview
                         },
                         // Use the MAIN popup's transform, not this popup's: the avatar preview lives in the main popup, and LocalPopupOverlay.SetAsLastSibling only works when dimmer and avatar share a parent.
-                        parentPopupTransform: parentPopupTransform);
+                        parentPopupTransform: parentPopupTransform,
+                        rest: rest);
                 }, row, new Vector2(PopupUI.ButtonLeftX, 0f));
                 return row;
             }, topPadding: PopupUI.BtnTopGap);
@@ -326,7 +348,7 @@ internal static class CosmeticOffsetEntryPopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 if (deathShown) onDeathHeadTrigger?.Invoke(false);
                 popup.ClosePage(false);
@@ -338,27 +360,7 @@ internal static class CosmeticOffsetEntryPopup
                 if (deathShown) onDeathHeadTrigger?.Invoke(false);
                 popup.ClosePage(false);
                 CommitDeathHeadExtras();
-                if (selCondition.HasValue)
-                {
-                    onDone(new CosmeticOffsetEntry
-                    {
-                        TriggerType = selCondition.Value,
-                        PosX = posX,
-                        PosY = posY,
-                        PosZ = posZ,
-                        RotX = rotX,
-                        RotY = rotY,
-                        RotZ = rotZ,
-                        ScaleX = scaleX,
-                        ScaleY = scaleY,
-                        ScaleZ = scaleZ,
-                        LerpSpeed = speed,
-                    });
-                }
-                else
-                {
-                    onDone(null); // "None" selected — treat as cancel
-                }
+                onDone(BuildCurrentEntry()); // null when "None" is selected — treated as cancel
             }, row, new Vector2(PopupUI.ButtonRightX, 0f));
 
             return row;

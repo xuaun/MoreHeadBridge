@@ -38,7 +38,10 @@ internal static class WorldCosmeticsMenuFilterPatch
                 .Where(b => b != null && b.cosmeticAsset != null)
                 .ToArray();
 
-            int remaining = 0;
+            // Rows not created yet: its builder already left out world and hidden cosmetics.
+            var lazy = section.GetComponent<LazyCosmeticGrid>();
+            int remaining = lazy != null ? lazy.Count : 0;
+
             foreach (var btn in cosmeticButtons)
             {
                 // Hide world assets from the normal sections; keep everything else.
@@ -54,7 +57,7 @@ internal static class WorldCosmeticsMenuFilterPatch
                     touchedAnyButton = true;
                 }
 
-                if (shouldShow)
+                if (shouldShow && lazy == null)
                     remaining++;
             }
 

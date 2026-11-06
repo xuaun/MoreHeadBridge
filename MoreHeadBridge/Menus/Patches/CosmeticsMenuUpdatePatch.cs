@@ -15,7 +15,8 @@ internal static class CosmeticsMenuUpdatePatch
         InputKey.Back,   // close menu
         InputKey.Menu,   // open/close menu
         InputKey.Scroll, // scroll the cosmetics list
-        InputKey.Grab,   // click-drag to rotate the avatar preview
+        InputKey.MouseInput, // cursor position, for hovering
+        InputKey.UIClick,    // clicks and click-drag to rotate the avatar preview
     };
 
     [HarmonyPostfix]
@@ -39,12 +40,19 @@ internal static class CosmeticsMenuUpdatePatch
 
         if (CosmeticsMenuState.SearchField != null)
         {
+            // A controller keeps full menu control; SearchFieldGamepad opens the field on demand.
+            if (SemiFunc.InputMode() == InputModes.Gamepad) return;
+
             if (!CosmeticsMenuState.SearchField.isFocused)
                 CosmeticsMenuState.SearchField.ActivateInputField();
 
             // Renewing every frame keeps the block continuous.
             if (InputManager.instance != null)
                 InputManager.instance.DisableControlsExcept(0.1f, SearchAllowedKeys);
+
+            // Stops WASD/arrow menu navigation while typing — same 0.1 s renewal vanilla text fields use.
+            if (MenuManager.instance != null)
+                MenuManager.instance.TextInputActive();
 
             return;
         }
@@ -92,4 +100,13 @@ internal static class CosmeticsMenuUpdatePatch
             if (b != null && b.hovering) return true;
         return false;
     }
+}
+
+// A/D rotation reads the keyboard directly, so DisableControlsExcept can't stop it while typing in SEARCH.
+[HarmonyPatch(typeof(PlayerAvatarMenu), "UpdateRotationInput")]
+internal static class SearchBlocksAvatarRotationPatch
+{
+    [HarmonyPrefix]
+    private static bool Prefix()
+        => !(CosmeticsMenuState.SearchMode && CosmeticsMenuState.SearchField != null && CosmeticsMenuState.SearchField.isFocused);
 }

@@ -264,7 +264,7 @@ internal static partial class CosmeticSettingsPopup
         popup.AddElementToScrollView(sv =>
         {
             var row = PopupUI.MakeRow(sv);
-            MenuAPI.CreateREPOButton(BtnCancelText, () => popup.ClosePage(false),
+            PopupUI.CreateBackButton(BtnCancelText, () => popup.ClosePage(false),
                 row, new Vector2(BtnBackX, 0f));
             MenuAPI.CreateREPOButton(BtnConfirmText, () =>
             {
@@ -554,7 +554,7 @@ internal static partial class CosmeticSettingsPopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton(BtnCloseText, () =>
+            PopupUI.CreateBackButton(BtnCloseText, () =>
             {
                 CustomizerSync.OnRemoteDataChanged -= dataChangedHandler;
                 popup.ClosePage(false);

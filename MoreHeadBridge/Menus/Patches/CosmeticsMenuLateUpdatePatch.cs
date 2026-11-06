@@ -10,14 +10,9 @@ namespace MoreHeadBridge;
 [HarmonyPatch(typeof(MenuPageCosmetics), "LateUpdate")]
 internal static class CosmeticsMenuLateUpdatePatch
 {
-    private const string HintBase      = "Ctrl+click = Fav\nAlt+click = Hide";
-    private const string HintOverride  = "\nShift+click = Edit";
-    private static string Hint => Plugin.EnableCosmeticCustomizer.Value
-        ? HintBase + HintOverride
-        : HintBase;
     private const float  HintDelay    = 2f;    // seconds before fade begins
     private const float  HintFade     = 0.5f;  // fade-in duration
-    private const float  HintAlpha    = 0.4f;  // target opacity
+    private const float  HintAlpha    = 0.7f;  // target opacity; low values wash out the button icons
 
     private static readonly Color NormalColor     = Color.white;
     // Warm amber — distinct from both white (hover) and the semi-transparent hint.
@@ -35,16 +30,25 @@ internal static class CosmeticsMenuLateUpdatePatch
     // Accumulated time with no cosmetic hovered, reset whenever hover begins.
     private static float _noHoverTime;
 
+    private static InputDeviceType _lastDevice;
+
     // Called when the menu is destroyed, so the next open starts the idle timer fresh.
     internal static void OnMenuClosed()
     {
         _noHoverTime = 0f;
         _lastText    = "";
+        MenuActionPrompts.Invalidate();
     }
 
     [HarmonyPostfix]
     private static void Postfix(MenuPageCosmetics __instance)
     {
+        if (InputGlyphs.CurrentDevice != _lastDevice)
+        {
+            _lastDevice = InputGlyphs.CurrentDevice;
+            CosmeticsScrollBuilder.RefreshEmptyStatePrompt();
+        }
+
         var label = CosmeticsMenuState.StatusLabel;
         if (label == null) return;
 
@@ -131,14 +135,16 @@ internal static class CosmeticsMenuLateUpdatePatch
             _noHoverTime += Time.unscaledDeltaTime;
             float fadeProgress = Mathf.Clamp01((_noHoverTime - HintDelay) / HintFade);
 
-            // group.alpha fades background and text as one unit; label.color stays at HintAlpha (group.alpha multiplies it).
-            if (group != null) group.alpha = fadeProgress;
+            string hint = MenuActionPrompts.Hint();
+
+            // group.alpha fades background and text as one unit; label.color stays at HintAlpha (group.alpha multiplies it). No shortcut to show (all set to Off): no panel.
+            if (group != null) group.alpha = hint.Length > 0 ? fadeProgress : 0f;
 
             // Only remeasure when text changes — avoids redundant mesh rebuilds every LateUpdate.
-            if (Hint != _lastText)
-                ApplyText(label, Hint, new Color(1f, 1f, 1f, HintAlpha));
+            if (hint != _lastText)
+                ApplyText(label, hint, new Color(1f, 1f, 1f, HintAlpha));
             else
-                label.text = Hint; // already sized and colored correctly
+                label.text = hint; // already sized and colored correctly
         }
     }
 

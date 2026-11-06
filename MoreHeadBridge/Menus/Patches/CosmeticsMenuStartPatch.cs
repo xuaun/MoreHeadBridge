@@ -151,7 +151,12 @@ internal static class CosmeticsMenuStartPatch
 
         Transform? divider = FindDivider(page);
 
+        // The strip's selection box stays first so it renders behind the tabs.
         int siblingIndex = 0;
+        var selectionBox = page.categoriesTransform.GetComponentInChildren<MenuSelectionBox>(true);
+        if (selectionBox != null)
+            selectionBox.transform.SetSiblingIndex(siblingIndex++);
+
         foreach (var (keys, isDivider) in desired)
         {
             if (isDivider)
@@ -191,12 +196,13 @@ internal static class CosmeticsMenuStartPatch
         clone.SetSiblingIndex(selectedBtn.transform.GetSiblingIndex() + 1);
     }
 
-    // the "|" divider is the only direct child with no button component
+    // the "|" divider is the only direct child that's neither a tab nor the strip's selection box
     internal static Transform? FindDivider(MenuPageCosmetics page)
     {
         foreach (Transform child in page.categoriesTransform)
         {
-            if (child.GetComponent<MenuElementButtonCosmeticCategory>() == null)
+            if (child.GetComponent<MenuElementButtonCosmeticCategory>() == null
+                && child.GetComponent<MenuSelectionBox>() == null)
                 return child;
         }
         return null;
@@ -351,6 +357,10 @@ internal static class CosmeticsMenuStartPatch
 
         ApplySearchFieldLayout(input);
 
+        // The game's navigation can't select a plain TMP_InputField; only the child added below takes part.
+        input.navigation = new Navigation { mode = Navigation.Mode.None };
+        SearchFieldGamepad.Attach(input);
+
         fieldGO.SetActive(false);
         CosmeticsMenuState.SetSearchField(input);
     }
@@ -498,6 +508,7 @@ internal static class CosmeticsMenuStartPatch
                 capturedPage.colorPopup?.SetState(_state: false);
                 capturedPage.randomizePopup?.SetState(_state: false);
                 capturedPage.resetPopup?.SetState(_state: false);
+                capturedPopup.toggleSemiUI?.SemiUISpringScale(-0.3f, 2f, 0.25f);   // same press animation as the vanilla toggles
                 capturedPopup.SetState(!capturedPopup.dropdownActive);
             };
         }
@@ -574,6 +585,10 @@ internal static class CosmeticsMenuStartPatch
             UpdateToolsButton(btn1, clearAction, HasIconsToDelete());
             UpdateToolsButton(btn2, settingsAction, HasCosmeticSettingsData());
         };
+
+        // Cloned inactive, so the buttons' Awake hasn't run: the popup's Start would find nothing to navigate and focus wouldn't enter the dropdown.
+        cloneDropdownGO.SetActive(true);
+        cloneDropdownGO.SetActive(false);
     }
 
     // Maps target's relative path under origRoot onto cloneRoot and calls assign. Silently no-ops when target isn't a descendant (e.g. the sibling dropdownObj).
@@ -677,6 +692,7 @@ internal static class CosmeticsMenuStartPatch
     {
         var meta = MetaManager.instance;
         if (meta == null) return false;
+        if (RenderedIconCache.HasAny()) return true;
         foreach (var id in HhhCosmeticLoader.RegisteredAssetIds)
         {
             // The Mini-Semibot photo survives Clear All Icons (it can't be re-rendered) — skip it here too, or its cache keeps the button enabled right after a clear.

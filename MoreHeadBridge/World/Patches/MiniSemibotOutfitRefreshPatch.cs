@@ -15,12 +15,18 @@ internal static class MiniSemibotColorsRefreshPatch
         RecolorMiniOfLiveLocalWearer(__instance);
     }
 
-    // LIVE local wearer recoloured → refresh what hangs off their colours (world mini + CustomGrabColor beam).
+    // LIVE local wearer recoloured → refresh what hangs off their colours (world mini + CustomGrabColor beam). The expression preview avatar recolours at the same menu confirm, and its mini waits for it like the world one.
     internal static void RecolorMiniOfLiveLocalWearer(PlayerCosmetics pc)
     {
         if (pc == null) return;
         var visuals = pc.playerAvatarVisuals;
-        if (visuals == null || visuals.isMenuAvatar) return;
+        if (visuals == null) return;
+        if (MiniSemibotSpawner.IsExpressionAvatar(visuals))
+        {
+            MiniSemibotSpawner.RecolorLocalMini(pc);
+            return;
+        }
+        if (visuals.isMenuAvatar) return;
         if (visuals.playerAvatar == null || !visuals.playerAvatar.isLocal) return;
         MiniSemibotSpawner.RecolorLocalMini(pc);
         CustomGrabColorCompat.RefreshLocalBeam();

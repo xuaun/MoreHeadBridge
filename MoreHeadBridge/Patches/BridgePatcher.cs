@@ -32,6 +32,9 @@ internal static class BridgePatcher
     /// True when a menu-takeover patch failed to apply — surviving members defer to the vanilla menu.
     internal static bool MenuTakeoverBroken { get; private set; }
 
+    /// True when the patch that creates the rows failed to apply — sections create every button up front.
+    internal static bool LazyGridBroken { get; private set; }
+
     /// PatchAll semantics (same type enumeration and order), isolated per class.
     internal static void ApplyAll(Harmony harmony)
     {
@@ -50,6 +53,8 @@ internal static class BridgePatcher
                 BceConsole.LogWarning($"Patch {type.Name} failed to apply (game update?) — its feature is disabled: {ex.Message}");
                 if (MenuTakeoverCluster.Contains(type.Name))
                     MenuTakeoverBroken = true;
+                if (type == typeof(LazyCosmeticGridScrollPatch))
+                    LazyGridBroken = true;
             }
         }
 

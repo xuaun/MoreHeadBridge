@@ -209,7 +209,7 @@ internal static class CosmeticHidePopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 config.WhenTypes!.Clear(); config.WhenTypes.AddRange(snapTypes);
                 config.WhenConditions!.Clear(); config.WhenConditions.AddRange(snapConds);

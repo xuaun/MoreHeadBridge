@@ -27,6 +27,8 @@ internal sealed class MiniSemibotFace : MonoBehaviour
     private AudioSource? _audio;             // mimic-clip playback source (lazy)
     private float _mimicTimer;               // owner-side: countdown to the next clip
     private bool _wasInLevel;                // owner-side: tracks level entry to seed the startup warm-up
+    private bool? _isWorldMini;              // cached IsWorldMini
+    private static MiniSemibotFace? _localSpeaker;   // the local world mini: preview and menu minis mouth along to its clips
 
     // Seconds to wait after entering a level before the FIRST mimic clip, so the mini doesn't chatter during the load / countdown before the phase begins.
     private const float MimicLevelWarmupMin = 10f;
@@ -75,8 +77,8 @@ internal sealed class MiniSemibotFace : MonoBehaviour
             bool muted = wearerDead || (Follow != null && Follow.BodyHidden);
             if (muted && _audio != null && _audio.isPlaying) _audio.Stop();
 
-            // MimicClips: only the OWNER picks + broadcasts (reads its own AudioFiles). Null wearer = our own menu mini → treated as local; TickOwnerMimic no-ops outside a level.
-            if (!muted && cfg.Mouth == MiniSemibotMouthMode.MimicClips && (WearerAvatar == null || WearerAvatar.isLocal))
+            // MimicClips: only the owner's world mini picks + broadcasts (reads its own AudioFiles). The preview and menu minis sit far from the listener: their clips would be silent here and still reach everyone else.
+            if (!muted && cfg.Mouth == MiniSemibotMouthMode.MimicClips && IsWorldMini && WearerAvatar != null && WearerAvatar.isLocal)
                 TickOwnerMimic(cfg);
 
             float loud = muted ? 0f : cfg.Mouth switch
@@ -103,6 +105,10 @@ internal sealed class MiniSemibotFace : MonoBehaviour
     }
 
     // ── Mimic clips ──────────────────────────────────────────────────────────────
+    // False for the menu, preview and icon copies of the mini, which follow the local player's world mini.
+    private bool IsWorldMini
+        => _isWorldMini ??= Follow != null && !MiniSemibotSpawner.IsMenuOrPreviewWearer(Follow.WearerVisuals);
+
     private void EnsureRegistered()
     {
         int actor = MiniSemibotSync.ActorOf(WearerAvatar);
@@ -115,6 +121,8 @@ internal sealed class MiniSemibotFace : MonoBehaviour
     // Owner-only: every few seconds, while not already playing, grab a recorded clip, play it locally and (in multiplayer) broadcast its bytes so every copy of this mini speaks the same clip.
     private void TickOwnerMimic(in MiniSemibotConfig cfg)
     {
+        _localSpeaker = this;
+
         // Only play clips inside an actual level — not in the lobby, shop, main menu, or between phases.
         if (!SemiFunc.RunIsLevel()) { _wasInLevel = false; return; }
 
@@ -179,11 +187,13 @@ internal sealed class MiniSemibotFace : MonoBehaviour
         _audio.minDistance = 1f;
         _audio.maxDistance = 20f;
         _audio.volume = 1f;
+        _audio.outputAudioMixerGroup = MiniSemibotMimicAudio.VoiceGroup;
     }
 
-    // Jaw from the speech envelope at the playback position, AUTO-NORMALISED per clip (quiet recordings open the mouth fully). Read from the raw samples, so it's independent of playback volume / 3D distance.
+    // Jaw from the speech envelope at the playback position, AUTO-NORMALISED per clip (quiet recordings open the mouth fully). Read from the raw samples, so it's independent of playback volume / 3D distance. Menu and preview copies read the local world mini's clip.
     private float MimicLoudness()
     {
+        if (!IsWorldMini) return _localSpeaker != null ? _localSpeaker.MimicLoudness() : 0f;
         if (_audio == null || !_audio.isPlaying || _clipSamples == null) return 0f;
         int ch = _clipChannels;
         int start = _audio.timeSamples * ch;          // timeSamples = current frame (per channel)
@@ -198,6 +208,7 @@ internal sealed class MiniSemibotFace : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (_localSpeaker == this) _localSpeaker = null;
         if (_registeredActor >= 0) MiniSemibotMimicAudio.UnregisterFace(_registeredActor, this);
     }
 

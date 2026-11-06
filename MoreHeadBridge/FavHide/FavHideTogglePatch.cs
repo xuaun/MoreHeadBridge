@@ -1,4 +1,4 @@
-// Intercepts ToggleCosmetic: click → vanilla equip; Ctrl+click → FAVORITE; Alt+click → HIDE. Locked buttons always fall through. Only the clicked button's badge updates (no RefreshScrollContent, no flicker); FAV/HIDE tabs reflect it on next open.
+// Intercepts ToggleCosmetic: click → vanilla equip; modifier+click or gamepad shortcut → FAVORITE / HIDE / CUSTOMIZER (keys and buttons from the config). Locked buttons always fall through. Only the clicked button's badge updates (no RefreshScrollContent, no flicker); FAV/HIDE tabs reflect it on next open.
 
 using HarmonyLib;
 using System;
@@ -14,7 +14,17 @@ internal static class FavHideTogglePatch
     private static MethodInfo? _triggerClickAnimations;
     private static bool        _triggerLookupDone;  // true once AccessTools has been called (even if null)
 
-    private static int _lastShiftFrame = int.MinValue;
+    private static int _lastCustomizerFrame = int.MinValue;
+
+    // Action forced for one ToggleCosmetic call by a gamepad shortcut, which has no key to hold.
+    private static CosmeticClickAction _shortcut = CosmeticClickAction.Equip;
+
+    internal static void RunShortcut(MenuElementCosmeticButton button, CosmeticClickAction action)
+    {
+        _shortcut = action;
+        try { button.ToggleCosmetic(); }
+        finally { _shortcut = CosmeticClickAction.Equip; }
+    }
 
     [HarmonyPrefix]
     private static bool Prefix(MenuElementCosmeticButton __instance)
@@ -23,15 +33,17 @@ internal static class FavHideTogglePatch
         var cell = __instance.GetComponent<VariantCell>();
         if (cell != null) { cell.OnClick?.Invoke(); return false; }
 
-        bool ctrl     = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-        bool alt      = Input.GetKey(KeyCode.LeftAlt)     || Input.GetKey(KeyCode.RightAlt);
-        bool shiftNow = Input.GetKey(KeyCode.LeftShift)   || Input.GetKey(KeyCode.RightShift);
+        var (favMod, hideMod, custMod) = MenuClickModifiers.Effective();
+        bool fav     = _shortcut == CosmeticClickAction.Favorite || MenuClickModifiers.Held(favMod);
+        bool hide    = _shortcut == CosmeticClickAction.Hide     || MenuClickModifiers.Held(hideMod);
+        bool custNow = MenuClickModifiers.Held(custMod);
 
-        if (shiftNow) _lastShiftFrame = Time.frameCount;
-        bool shift = shiftNow || (_lastShiftFrame >= 0 && Time.frameCount - _lastShiftFrame <= 3);
+        if (custNow) _lastCustomizerFrame = Time.frameCount;
+        bool cust = _shortcut == CosmeticClickAction.Customize || custNow
+                    || (_lastCustomizerFrame >= 0 && Time.frameCount - _lastCustomizerFrame <= 3);
 
         // Plain click on a group representative opens the variant picker; modifier clicks fall through and act on the representative normally.
-        if (!ctrl && !alt && !shift)
+        if (!fav && !hide && !cust)
         {
             var group = __instance.GetComponent<CosmeticGroupButton>();
             if (group != null && group.IsActive && Plugin.MenuLibAvailable)
@@ -43,10 +55,10 @@ internal static class FavHideTogglePatch
         }
 
         // Normal click — let vanilla handle it.
-        if (!ctrl && !alt && !shift) return true;
+        if (!fav && !hide && !cust) return true;
 
-        // Ctrl/alt interactions require the extended menu (FAV/HIDE tabs must exist).
-        if ((ctrl || alt) && !Plugin.EnableMenuEnhancements.Value) return true;
+        // Favorite/hide interactions require the extended menu (FAV/HIDE tabs must exist).
+        if ((fav || hide) && !Plugin.EnableMenuEnhancements.Value) return true;
 
         // Locked cosmetics: let vanilla play its locked feedback.
         if (__instance.menuButton != null && __instance.menuButton.disabled) return true;
@@ -55,8 +67,8 @@ internal static class FavHideTogglePatch
         // Clear buttons (no asset) cannot be favorited or hidden.
         if (asset == null) return true;
 
-        // Shift+click → open per-cosmetic override popup (bridge cosmetics only).
-        if (shift && !ctrl && !alt)
+        // Customizer gesture → open per-cosmetic override popup (bridge cosmetics only).
+        if (cust && !fav && !hide)
         {
             if (Plugin.EnableCosmeticCustomizer.Value
                 && Plugin.MenuLibAvailable
@@ -67,18 +79,19 @@ internal static class FavHideTogglePatch
                 PopupUI.AfterMouseRelease(Plugin.Instance, () => CosmeticOverridePopup.Show(asset));
                 return !alreadyEquipped; // not equipped → let vanilla ToggleCosmetic equip it
             }
-            return true; // shift on a non-customizable cosmetic → let vanilla handle
+            return true; // customizer gesture on a non-customizable cosmetic → let vanilla handle
         }
 
         BridgeFavoritesManager.EnsureLoaded();
 
-        if (ctrl)
+        if (fav)
             BridgeFavoritesManager.ToggleFavorite(asset);
         else
             BridgeFavoritesManager.ToggleHidden(asset);
 
         // ── Sound ─────────────────────────────────────────────────────────────
         // Use MenuManager.instance.soundPosition to match vanilla's own click sound.
+        SemiFunc.GamepadRumbleThockBigButton();
         try
         {
             __instance.soundClick.Play(MenuManager.instance.soundPosition);

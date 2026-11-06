@@ -6,10 +6,17 @@ top. Flat namespace (`MoreHeadBridge`), one type per file.
 
 ## Lifecycle (Plugin.Awake, order matters)
 
+`HhhPreloadPlugin`, a second plugin in this DLL, runs before everything because its GUID sorts first.
+`HhhPreloader` patches `AssetBundle.LoadFromFile` so `.hhh` files open in the background for whoever
+asks next (MoreHead, or the bridge without it); `Plugin.Awake` removes the patch right after `LoadAll`.
+It can't touch `Plugin`, `BridgeLog`, REPOLib or MenuLib: none of them are ready that early.
+
 1. `BridgePaths.Init` → `BindConfig` → MenuLib detection.
 2. `CustomizerStore.Load()` + one-shot config triggers (Reset / Import / Export).
 3. `HhhCosmeticLoader.LoadAll()` — scans `BepInEx/plugins/**/*.hhh`, registers each prefab through
-   REPOLib (`assetId = "morehead-bridge:" + name`, see `BridgeIds`).
+   REPOLib (`assetId = "morehead-bridge:" + name`, see `BridgeIds`). Files MoreHead already opened
+   are cloned from its prefabs (`MoreHeadPrefabs`): meshes, materials and clips stay shared, so
+   never write to those assets.
 4. `MiniSemibotCosmetic.Register()` — synthetic WORLD cosmetic, joins the normal pipeline.
 5. `PerCosmeticColors.Load()`, icon-cache cleanup, **`BridgePatcher.ApplyAll()`**, config handlers.
 6. Reflection-based compat patches via `TryApply` (targets may be absent: REPOLib internals,
@@ -17,6 +24,11 @@ top. Flat namespace (`MoreHeadBridge`), one type per file.
 
 `BridgePatcher` applies each `[HarmonyPatch]` class individually (a game update that removes one
 member disables one feature, not the mod); the cosmetics-menu takeover cluster fails as a unit.
+
+With `FixCosmeticsMenuPerformance` on, each section of the cosmetics menu keeps its items in a
+`LazyCosmeticGrid`: buttons are created when their row comes near the viewport, and rows are hidden
+when they leave it. Code that walks a section's buttons only sees the rows created so far, so read
+the grid's data instead.
 
 ## Subsystems (by folder)
 
@@ -76,7 +88,7 @@ Equip sync itself is vanilla + REPOLib RPCs; `REPOLibRpcOrderPatch` and
 - `PerCosmeticColors.json` — unified v2 colour store (all six maps, one `Save()`); v1 sibling files
   are migrated on first load. `PresetColors.json` stays separate.
 - `BridgeBlacklist`, favourites/hidden, `AutoUnlockedModded.json`.
-- Icon PNG cache lives outside config: `AppData/.../Cache/Icons/CosmeticsModded/`.
+- Icon PNG cache lives outside config: `AppData/.../Cache/MoreHeadBridge_CosmeticsIcons/`, out of `Cache/Icons/`, which the game empties on every new game version. Icons rendered for other cosmetic mods are saved per profile in `BepInEx/cache/MoreHeadBridge/RenderedIcons/`, emptied when the profile's `.repobundle` files or the game version change.
 
 `PerCosmeticColors` stores `-1` (`OriginalColorSentinel`) inside the palette-index map meaning
 "restore original" — never feed a stored index to `MetaManager.colors` without checking it.

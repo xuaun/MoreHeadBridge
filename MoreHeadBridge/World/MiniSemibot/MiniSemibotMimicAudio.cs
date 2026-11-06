@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace MoreHeadBridge;
 
@@ -28,6 +29,22 @@ internal static class MiniSemibotMimicAudio
 
     // The folder the Mimic mod records into (same hard-coded location Mimic uses).
     internal static string AudioFolder => Path.Combine(Application.dataPath, "AudioFiles");
+
+    private static AudioMixerGroup? _voiceGroup;
+
+    // The group the game plays voices through. It adds 20 dB, without which recorded clips are almost silent, and follows the game's voice volume.
+    internal static AudioMixerGroup? VoiceGroup
+    {
+        get
+        {
+            if (_voiceGroup == null)
+            {
+                var voice = Resources.Load<PlayerVoiceChat>("Voice");
+                if (voice != null) _voiceGroup = voice.mixerMicrophoneSound;
+            }
+            return _voiceGroup;
+        }
+    }
 
     // ── Registry (called by MiniSemibotFace) ─────────────────────────────────────
     internal static void RegisterFace(int actor, MiniSemibotFace face)

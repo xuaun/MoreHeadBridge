@@ -37,7 +37,7 @@ internal static class HhhCosmeticLoader
         return null;
     }
 
-    // assetId → main texture from the prefab's materials, for GetIconPatch to render a real icon instead of the placeholder.
+    // assetId → main texture from the prefab's materials, for BridgeIconResolver to render a real icon instead of the placeholder.
     internal static readonly Dictionary<string, Texture2D> BridgeIconTextures = new();
 
     // Unified tag → (vanilla CosmeticType, OverrideCosmeticType) map. Worlds use Hat as vanilla type (keeps type-indexed structures in-bounds); WorldAssetIds drives world logic.
@@ -140,7 +140,7 @@ internal static class HhhCosmeticLoader
         while (next < files.Length && inflight.Count < window)
         {
             string p = files[next++];
-            inflight.Enqueue((p, Task.Run(() => ReadBytesOrNull(p))));
+            inflight.Enqueue((p, ReadAhead(p)));
         }
         while (inflight.Count > 0)
         {
@@ -151,18 +151,23 @@ internal static class HhhCosmeticLoader
             if (next < files.Length)
             {
                 string p = files[next++];
-                inflight.Enqueue((p, Task.Run(() => ReadBytesOrNull(p))));
+                inflight.Enqueue((p, ReadAhead(p)));
             }
         }
 
         int total = files.Length;
         int skipped = total - registered;
+        string reused = MoreHeadPrefabs.Cloned > 0 ? $", {MoreHeadPrefabs.Cloned} reused from MoreHead" : "";
 
-        BceConsole.LogInfo($"Done — {registered}/{total} registered, {skipped} error(s)");
+        BceConsole.LogInfo($"Done — {registered}/{total} registered, {skipped} error(s){reused}");
 
         if (_seeding) BridgeBlacklist.Save();   // always write (even empty) so the next run never re-seeds
         BridgeBlacklist.MirrorToMoreHead();
     }
+
+    // Files MoreHead already opened or the preloader will open don't need their bytes read.
+    private static Task<byte[]?> ReadAhead(string path)
+        => MoreHeadPrefabs.Has(path) || HhhPreloader.Active ? Task.FromResult<byte[]?>(null) : Task.Run(() => ReadBytesOrNull(path));
 
     // Reads a .hhh file's bytes on a background thread; null on failure or if too small (TryRegister then falls back to LoadFromFile or skips).
     private static byte[]? ReadBytesOrNull(string path)
@@ -197,25 +202,9 @@ internal static class HhhCosmeticLoader
 
         SemiFunc.CosmeticType cosmeticType = tagEntry.VanillaType;
 
-        // LoadFromMemory when bytes are available (background pre-read); fall back to LoadFromFile if it failed/skipped.
-        AssetBundle? bundle = bytes != null
-            ? AssetBundle.LoadFromMemory(bytes)
-            : AssetBundle.LoadFromFile(path);
-
-        if (bundle == null)
-        {
-            BceConsole.LogError($"Failed to load bundle: {fileName}");
-            return false;
-        }
-
-        GameObject? prefab = LoadFirstPrefab(bundle);
-        bundle.Unload(false);
-
+        GameObject? prefab = MoreHeadPrefabs.Clone(path) ?? OpenBundle(path, bytes, fileName);
         if (prefab == null)
-        {
-            BceConsole.LogError($"No GameObject in bundle: {fileName}");
             return false;
-        }
 
         // Some .hhh prefabs ship their ROOT GameObject disabled (MoreHead activates it on equip). Instantiate preserves activeSelf, so force the root active once here; children left as authored (variant meshes may start disabled).
         if (!prefab.activeSelf)
@@ -321,6 +310,27 @@ internal static class HhhCosmeticLoader
             BridgeIconTextures[assetId] = iconTex;
 
         return true;
+    }
+
+    // Opens the .hhh and loads its prefab. LoadFromMemory when bytes are available (background pre-read); fall back to LoadFromFile if it failed/skipped.
+    private static GameObject? OpenBundle(string path, byte[]? bytes, string fileName)
+    {
+        AssetBundle? bundle = bytes != null
+            ? AssetBundle.LoadFromMemory(bytes)
+            : AssetBundle.LoadFromFile(path);
+
+        if (bundle == null)
+        {
+            BceConsole.LogError($"Failed to load bundle: {fileName}");
+            return null;
+        }
+
+        GameObject? prefab = LoadFirstPrefab(bundle);
+        bundle.Unload(false);
+
+        if (prefab == null)
+            BceConsole.LogError($"No GameObject in bundle: {fileName}");
+        return prefab;
     }
 
     // Loads the first GameObject asset out of a bundle (bridge/MoreHead .hhh hold exactly one).

@@ -36,6 +36,14 @@ internal static class PopupUI
             LocalPopupOverlay.Add(popup.gameObject, parentPopupTransform);
     }
 
+    // A popup's Cancel, Back or Close button. PopupNav presses it on Back and ESC, so they also run what it reverts.
+    internal static REPOButton CreateBackButton(string text, Action onClick, Transform parent, Vector2 localPosition)
+    {
+        var button = MenuAPI.CreateREPOButton(text, onClick, parent, localPosition);
+        button.gameObject.AddComponent<PopupBackButton>();
+        return button;
+    }
+
     // ── Slider-numeric helpers (string option ↔ value) ──────────────────────────
 
     internal static float ParseFloat(string s)

@@ -58,6 +58,21 @@ internal static class CustomTypesLogicNpeGuardPatch
 [HarmonyPatch(typeof(Cosmetic), "EquipAnimation")]
 internal static class EquipAnimationNpeGuardPatch
 {
+    private static readonly LazyFieldRef<Cosmetic, List<UnityEngine.Vector3>> _meshParentsScale = new("meshParentsScale", "icon-spawn pop-in guard");
+    private static readonly LazyFieldRef<Cosmetic, float> _equipLerp = new("equipLerp", "icon-spawn pop-in guard");
+
+    // Icon spawns never run Cosmetic.Setup(), so meshParentsScale stays empty and the vanilla loop indexes past it. The prefab is already at full scale — just end the pop-in.
+    [HarmonyPrefix]
+    private static bool Prefix(Cosmetic __instance)
+    {
+        var parents = __instance.meshParents;
+        if (parents == null || !_meshParentsScale.TryGet(__instance, out var scales) || scales == null) return true;
+        if (scales.Count >= parents.Count) return true;
+
+        _equipLerp.TrySet(__instance, 1f);
+        return false;
+    }
+
     [HarmonyFinalizer]
     private static Exception? Finalizer(Exception? __exception)
     {

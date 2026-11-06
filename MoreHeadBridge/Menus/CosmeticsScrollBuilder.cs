@@ -23,6 +23,8 @@ internal static class CosmeticsScrollBuilder
         AccessTools.Field(typeof(MenuPageCosmetics), "topDividerRestingPositionEnd");
     private static readonly FieldInfo? TopDividerRestingPositionEndNew =
         AccessTools.Field(typeof(MenuPageCosmetics), "topDividerRestingPositionEndNew");
+    private static readonly LazyFieldRef<MenuPageCosmetics, Coroutine> _recalculateRoutine = new("recalculateScrollHeightAfterFrameCoroutine", "scroll rebuild");
+    private static readonly LazyFieldRef<MenuPageCosmetics, Coroutine> _animateSubCategoriesRoutine = new("animateSubCategoriesCoroutine", "scroll rebuild");
 
     // ── Routing ───────────────────────────────────────────────────────────────
 
@@ -126,13 +128,16 @@ internal static class CosmeticsScrollBuilder
 
         if (totalVisible == 0)
         {
-            string msg = isFav  ? "Add a favorite with Ctrl+click :)"
-                : isHide        ? "Hide cosmetics with Alt+click :P"
-                : isSearch      ? (string.IsNullOrWhiteSpace(CosmeticsMenuState.SearchText)
+            if (isFav)       ShowEmptyStateFor(CosmeticClickAction.Favorite);
+            else if (isHide) ShowEmptyStateFor(CosmeticClickAction.Hide);
+            else
+            {
+                string msg = isSearch ? (string.IsNullOrWhiteSpace(CosmeticsMenuState.SearchText)
                                     ? "Type to search cosmetics here :)"
                                     : "No cosmetics found :'(")
-                :                 "Equip a cosmetic to see it here :3";
-            ShowEmptyState(msg);
+                    :             "Equip a cosmetic to see it here :3";
+                ShowEmptyState(msg);
+            }
         }
         else
             HideEmptyState();
@@ -273,6 +278,13 @@ internal static class CosmeticsScrollBuilder
         grid.padding = new RectOffset(grid.padding.left, grid.padding.right, grid.padding.top, 0);
 
         int shown = PopulateSectionButtons(page, section, assetList);
+        if (shown == 0)
+        {
+            // Another mod hides every button of this section (LazyCosmeticGrid).
+            Object.Destroy(sectionGO);
+            return null;
+        }
+
         ApplySectionSize(section, shown);
         return section;
     }
@@ -281,6 +293,9 @@ internal static class CosmeticsScrollBuilder
         MenuPageCosmetics page, MenuElementCosmeticSection section, IEnumerable<CosmeticAsset> assets)
     {
         var collapsed = CosmeticGrouping.Collapse(assets);
+        if (Plugin.FixCosmeticsMenuPerformance.Value && !BridgePatcher.LazyGridBroken)
+            return LazyCosmeticGrid.Attach(page, section, collapsed).Count;
+
         foreach (var (rep, members) in collapsed)
         {
             var btnGO = Object.Instantiate(page.sectionButtonPrefab, section.cosmeticListTransform);
@@ -392,6 +407,12 @@ internal static class CosmeticsScrollBuilder
             section.highlightObj.gameObject.SetActive(false);
 
         int shownWorld = PopulateSectionButtons(page, section, worldAssets);
+        if (shownWorld == 0)
+        {
+            Object.Destroy(sectionGO);
+            return 0;
+        }
+
         ApplySectionSize(section, shownWorld);
 
         var sectionRect = sectionGO.GetComponent<RectTransform>();
@@ -405,7 +426,28 @@ internal static class CosmeticsScrollBuilder
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    // Action named by the empty-state message, whose prompt follows the input device.
+    private static CosmeticClickAction? _emptyStateAction;
+
+    internal static void ShowEmptyStateFor(CosmeticClickAction action)
+    {
+        SetEmptyStateText(MenuActionPrompts.EmptyMessage(action));
+        _emptyStateAction = action;
+    }
+
     internal static void ShowEmptyState(string message)
+    {
+        SetEmptyStateText(message);
+        _emptyStateAction = null;
+    }
+
+    internal static void RefreshEmptyStatePrompt()
+    {
+        if (_emptyStateAction is { } action)
+            SetEmptyStateText(MenuActionPrompts.EmptyMessage(action));
+    }
+
+    private static void SetEmptyStateText(string message)
     {
         var go = CosmeticsMenuState.EmptyStateLabel;
         if (go == null) return;
@@ -416,6 +458,7 @@ internal static class CosmeticsScrollBuilder
 
     internal static void HideEmptyState()
     {
+        _emptyStateAction = null;
         var go = CosmeticsMenuState.EmptyStateLabel;
         if (go != null && go.activeSelf) go.SetActive(false);
     }
@@ -489,12 +532,18 @@ internal static class CosmeticsScrollBuilder
         if (scrollerGroup != null)
             scrollerGroup.alpha = 0f;
 
-        foreach (Transform child in page.subCategoriesTransform)
-            Object.Destroy(child.gameObject);
+        StopRoutine(page, _recalculateRoutine);
+        StopRoutine(page, _animateSubCategoriesRoutine);
+
+        foreach (var button in page.subCategoriesTransform.GetComponentsInChildren<MenuElementButtonCosmeticCategory>(true))
+            Object.Destroy(button.gameObject);
 
         foreach (var section in page.sections.ToList())
             if (section != null) Object.Destroy(section.gameObject);
         page.sections.Clear();
+
+        if (page.menuScrollBox != null)
+            page.menuScrollBox.disableHiddenChildren = true;
 
         page.scrollGradientTopHidden = true;
         if (TopDividerRestingPositionEnd?.GetValue(page) is Vector2 topEnd)
@@ -507,7 +556,7 @@ internal static class CosmeticsScrollBuilder
         }
     }
 
-    private static void ApplySectionSize(MenuElementCosmeticSection section, int count)
+    internal static void ApplySectionSize(MenuElementCosmeticSection section, int count)
     {
         var grid    = section.cosmeticListTransform.GetComponent<GridLayoutGroup>();
         int columns = Mathf.Max(1, grid.constraintCount);
@@ -527,7 +576,14 @@ internal static class CosmeticsScrollBuilder
     private static void StartRecalculate(MenuPageCosmetics page)
     {
         if (RecalculateScrollHeightAfterFrame?.Invoke(page, null) is IEnumerator routine)
-            page.StartCoroutine(routine);
+            _recalculateRoutine.TrySet(page, page.StartCoroutine(routine));
+    }
+
+    private static void StopRoutine(MenuPageCosmetics page, LazyFieldRef<MenuPageCosmetics, Coroutine> routine)
+    {
+        if (!routine.TryGet(page, out var running) || running == null) return;
+        page.StopCoroutine(running);
+        routine.TrySet(page, null!);
     }
 
     private static bool IsVanillaTabCategory(CosmeticCategoryAsset? category)

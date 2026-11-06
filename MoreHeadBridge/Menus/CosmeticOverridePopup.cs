@@ -583,7 +583,8 @@ internal static partial class CosmeticOverridePopup
                     cosmeticType,
                     onPreview: offsets => preview.RefreshOffsets(offsets),
                     parentPopupTransform: popup.transform,
-                    worldMode: isWorld);
+                    worldMode: isWorld,
+                    rest: preview.RestPose(cosmeticType));
             },
                 row, new Vector2(BtnOffsetX, 0f));
             return row;
@@ -663,7 +664,8 @@ internal static partial class CosmeticOverridePopup
                         onPreview: ShowImpactPreview,
                         onDone: fp => { EndImpactPreview(); pendingFloorPose = fp; PreviewFull(); },
                         onClose: EndImpactPreview,
-                        parentPopupTransform: popup.transform);
+                        parentPopupTransform: popup.transform,
+                        rest: preview.RestPose(CustomizerStore.MapOverrideToVanilla(pendingType).Item1));
                 }, row, new Vector2(BtnOffsetX, 0f));
                 return impactRow = row;
             }, topPadding: BtnTopGap);
@@ -681,9 +683,8 @@ internal static partial class CosmeticOverridePopup
                 {
                     // Attach the guard that keeps the crown visible and positioned while Crown Settings is open; destroyed on any close path (Done/Clear/Cancel).
                     CrownForceVisibleGuard? crownGuard = null;
-                    var cosmeticGo = preview.FindPreviewCosmeticGo();
-                    if (cosmeticGo != null && preview.PreviewPc?.playerCrown != null)
-                        crownGuard = CrownForceVisibleGuard.Attach(preview.PreviewPc.playerCrown, cosmeticGo);
+                    if (preview.PreviewPc?.playerCrown != null)
+                        crownGuard = CrownForceVisibleGuard.Attach(preview.PreviewPc.playerCrown, preview.FindPreviewCosmeticGo());
 
                     void CleanupGuard()
                     {
@@ -701,7 +702,8 @@ internal static partial class CosmeticOverridePopup
                         onClear: () => { pendingCrown = null; CleanupGuard(); preview.RefreshCrown(null); },
                         onPreview: config => preview.RefreshCrown(config),
                         onCancel: CleanupGuard,
-                        parentPopupTransform: popup.transform);
+                        parentPopupTransform: popup.transform,
+                        displayToStored: preview.CrownDisplayToStored());
                 }, row, new Vector2(BtnCrownX, 0f));
                 return crownRow = row;
             }, topPadding: BtnTopGap);
@@ -724,6 +726,7 @@ internal static partial class CosmeticOverridePopup
                     {
                         Existing = existing,
                         Triggers = null,
+                        Rest = preview.RestPose(CustomizerStore.MapOverrideToVanilla(pendingType).Item1),
                         OnDone = result =>
                         {
                             preview.ExitDeathHeadMode();
@@ -776,7 +779,7 @@ internal static partial class CosmeticOverridePopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Back", () => popup.ClosePage(false),
+            PopupUI.CreateBackButton("Back", () => popup.ClosePage(false),
                 row, new Vector2(BtnBackX, 0f));
 
             void DoSave()

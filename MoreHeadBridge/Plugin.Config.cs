@@ -20,6 +20,14 @@ public partial class Plugin
     public static ConfigEntry<bool> ExcludeMoreHeadFromPresetIcons { get; private set; } = null!;
     public static ConfigEntry<SearchBarPosition> SearchFieldPosition { get; private set; } = null!;
 
+    // ── [CosmeticsMenuShortcuts] ─────────────────────────────────────────────
+    public static ConfigEntry<MenuClickModifier> FavoriteClickModifier { get; private set; } = null!;
+    public static ConfigEntry<MenuClickModifier> HideClickModifier { get; private set; } = null!;
+    public static ConfigEntry<MenuClickModifier> CustomizerClickModifier { get; private set; } = null!;
+    public static ConfigEntry<MenuGamepadButton> FavoriteGamepadButton { get; private set; } = null!;
+    public static ConfigEntry<MenuGamepadButton> HideGamepadButton { get; private set; } = null!;
+    public static ConfigEntry<MenuGamepadButton> CustomizerGamepadButton { get; private set; } = null!;
+
     // ── [Blacklist] ──────────────────────────────────────────────────────────
     public static ConfigEntry<BlacklistLoadMode> BridgeBlacklistMode { get; private set; } = null!;
     public static ConfigEntry<bool> MirrorBlacklistToMoreHead { get; private set; } = null!;
@@ -45,12 +53,14 @@ public partial class Plugin
     // ── [OtherModdedCosmetics] ────────────────────────────────────────────────
     public static ConfigEntry<bool> HighlightModdedCosmetics { get; private set; } = null!;
     public static ConfigEntry<bool> AutoUnlockModdedCosmetics { get; private set; } = null!;
+    public static ConfigEntry<bool> SaveModdedIconsToDisk { get; private set; } = null!;
     public static ConfigEntry<bool> AllowModdedOverrides { get; private set; } = null!;
     public static ConfigEntry<bool> ResetModdedUnlocks { get; private set; } = null!;
     public static ConfigEntry<bool> EnableModdedCustomColors { get; private set; } = null!;
 
     // ── [Compatibility] ──────────────────────────────────────────────────────
     public static ConfigEntry<bool> FixCosmeticsMenuPerformance { get; private set; } = null!;
+    public static ConfigEntry<bool> ParallelCosmeticLoading { get; private set; } = null!;
     public static ConfigEntry<bool> RemoveBridgePhysics { get; private set; } = null!;
     public static ConfigEntry<bool> LoopBridgeAnimation { get; private set; } = null!;
     public static ConfigEntry<VanillaEquipAnimationMode> BridgeEquipAnimationMode { get; private set; } = null!;
@@ -142,7 +152,7 @@ public partial class Plugin
             defaultValue: true,
             description: "When TRUE (default), enables the extended cosmetics menu:\n" +
                          "  • Virtual tabs: SEARCH, SELECTED, FAV, HIDE\n" +
-                         "  • Ctrl+click to favorite, Alt+click to hide cosmetics\n" +
+                         "  • Favorite and hide cosmetics (Ctrl+click and Alt+click by default)\n" +
                          "  • Live search bar and cosmetic name hover tooltip\n" +
                          "Set to FALSE if you prefer the unmodified vanilla cosmetics menu."
         );
@@ -222,6 +232,69 @@ public partial class Plugin
             description: "Where the search bar appears in the cosmetics menu.\n" +
                          "Bottom = at the bottom of the Semibot.\n" +
                          "Top    = above the category strip (default)."
+        );
+
+        // ── [CosmeticsMenuShortcuts] ─────────────────────────────────────────
+        FavoriteClickModifier = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "FavoriteClickModifier",
+            defaultValue: MenuClickModifier.Ctrl,
+            description: "Which held key makes a click FAVORITE a cosmetic: Ctrl, Alt or Shift.\n" +
+                         "Each click action needs a different key; on a conflict, all three revert to\n" +
+                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
+                         "Applies without restart."
+        );
+
+        HideClickModifier = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "HideClickModifier",
+            defaultValue: MenuClickModifier.Alt,
+            description: "Which held key makes a click HIDE a cosmetic: Ctrl, Alt or Shift.\n" +
+                         "Each click action needs a different key; on a conflict, all three revert to\n" +
+                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
+                         "Applies without restart."
+        );
+
+        CustomizerClickModifier = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "CustomizerClickModifier",
+            defaultValue: MenuClickModifier.Shift,
+            description: "Which held key makes a click open the Cosmetic Customizer: Ctrl, Alt or Shift.\n" +
+                         "Each click action needs a different key; on a conflict, all three revert to\n" +
+                         "the defaults (Ctrl / Alt / Shift). On-screen hints follow this setting.\n" +
+                         "Applies without restart."
+        );
+
+        FavoriteGamepadButton = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "FavoriteGamepadButton",
+            defaultValue: MenuGamepadButton.LeftButton,
+            description: "Which gamepad button FAVORITES the selected cosmetic. Buttons are named by\n" +
+                         "position because labels differ per controller: TopButton is Y on Xbox, Triangle\n" +
+                         "on PlayStation and X on Switch; LeftButton is X, Square and Y. Off disables it.\n" +
+                         "Each action needs a different button; on a conflict, all three revert to the\n" +
+                         "defaults. On-screen hints show the real button. Applies without restart."
+        );
+
+        HideGamepadButton = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "HideGamepadButton",
+            defaultValue: MenuGamepadButton.RightTrigger,
+            description: "Which gamepad button HIDES the selected cosmetic. Buttons are named by position\n" +
+                         "(see FavoriteGamepadButton); the right stick also rotates the avatar, so\n" +
+                         "RightStickClick is easy to press by accident. Off disables it.\n" +
+                         "Each action needs a different button; on a conflict, all three revert to the\n" +
+                         "defaults. On-screen hints show the real button. Applies without restart."
+        );
+
+        CustomizerGamepadButton = Config.Bind(
+            section: "CosmeticsMenuShortcuts",
+            key: "CustomizerGamepadButton",
+            defaultValue: MenuGamepadButton.TopButton,
+            description: "Which gamepad button opens the Cosmetic Customizer for the selected cosmetic.\n" +
+                         "Buttons are named by position (see FavoriteGamepadButton). Off disables it.\n" +
+                         "Each action needs a different button; on a conflict, all three revert to the\n" +
+                         "defaults. On-screen hints show the real button. Applies without restart."
         );
 
         // ── [BridgeAppearance] ────────────────────────────────────────────────
@@ -387,6 +460,16 @@ public partial class Plugin
                          "When FALSE (default), modded cosmetics can only use the standard palette."
         );
 
+        SaveModdedIconsToDisk = Config.Bind(
+            section: "OtherModdedCosmetics",
+            key: "SaveModdedIconsToDisk",
+            defaultValue: true,
+            description: "When TRUE (default), the icons the game renders for cosmetics from other mods are\n" +
+                         "saved to disk (about 22 KB each, in BepInEx\\cache\\MoreHeadBridge\\RenderedIcons\\),\n" +
+                         "so later sessions load them instead of rendering them again.\n" +
+                         "When FALSE, nothing is saved or read: each session renders them once as they appear."
+        );
+
         HighlightModdedCosmetics = Config.Bind(
             section: "OtherModdedCosmetics",
             key: "HighlightModdedCosmetics",
@@ -429,9 +512,20 @@ public partial class Plugin
             section: "Compatibility",
             key: "FixCosmeticsMenuPerformance",
             defaultValue: false,
-            description: "Enable this if you have many cosmetics mods and the vanilla\n" +
-                         "cosmetics tabs (HEAD/BODY/ARMS/LEGS) are stuttering or\n" +
-                         "taking too long to load. Default = FALSE."
+            description: "Enable this if you have many cosmetics mods and the cosmetics menu is slow to\n" +
+                         "open or to change tabs. Only the buttons near the visible area are created,\n" +
+                         "and the rest appear as you scroll. Default = FALSE.\n" +
+                         "Leave it off if another mod needs every button of a tab to exist."
+        );
+
+        ParallelCosmeticLoading = Config.Bind(
+            section: "Compatibility",
+            key: HhhPreloader.OptionKey,
+            defaultValue: HhhPreloader.EnabledByDefault,
+            description: "When TRUE (default), .hhh files are opened in the background at startup, so the\n" +
+                         "game reaches the main menu faster with many cosmetics. It also speeds up MoreHead,\n" +
+                         "without changing it. Set to FALSE if another mod has trouble loading .hhh files.\n" +
+                         "Takes effect on the next game launch."
         );
 
         RemoveBridgePhysics = Config.Bind(
@@ -504,10 +598,10 @@ public partial class Plugin
                           "             fallback icons.\n" +
                           "\n" +
                           "PNG cache lives in:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Delete that folder to wipe all generated icons.\n" +
-                          "(Icons are stored in Cache\\Icons\\CosmeticsModded\\ — a sibling of the vanilla\n" +
-                          " Cache\\Icons\\Cosmetics\\ that REPOLib wipes, so ours are never touched.)"
+                          "(It stays out of Cache\\Icons\\, which the game empties on every new game\n" +
+                          " version and REPOLib partly wipes on each launch.)"
         );
 
         GenerateAllIcons = Config.Bind(
@@ -607,8 +701,11 @@ public partial class Plugin
             key: "DeleteIconCache",
             defaultValue: false,
             description: "ONE-SHOT trigger. When TRUE on launch, delete cached bridge icon PNGs from:\n" +
-                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\Icons\\CosmeticsModded\\MoreHeadBridge_CosmeticsIcons\\\n" +
+                          "  %userprofile%\\AppData\\LocalLow\\semiwork\\REPO\\Cache\\MoreHeadBridge_CosmeticsIcons\\\n" +
                           "Use DeleteIconsMatching to filter which ones to delete.\n" +
+                          "Without a filter, also deletes the saved icons of other cosmetic mods from:\n" +
+                          "  BepInEx\\cache\\MoreHeadBridge\\RenderedIcons\\\n" +
+                          "They are rendered and saved again as they appear in the menu.\n" +
                           "Auto-resets to FALSE after running."
         );
 

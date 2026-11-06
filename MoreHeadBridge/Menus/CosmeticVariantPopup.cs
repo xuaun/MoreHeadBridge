@@ -77,7 +77,7 @@ internal static class CosmeticVariantPopup
         popup.AddElementToScrollView(scrollView =>
         {
             var row = PopupUI.MakeRow(scrollView);
-            MenuAPI.CreateREPOButton("Back", () => popup.ClosePage(false), row, new Vector2(-137f, 0f));
+            PopupUI.CreateBackButton("Back", () => popup.ClosePage(false), row, new Vector2(-137f, 0f));
             return row;
         }, topPadding: 36f);
 
@@ -108,7 +108,8 @@ internal static class CosmeticVariantPopup
             // Icon.
             if (mecb.iconImage != null)
             {
-                var sprite = member.Asset != null ? member.Asset.GetIcon() : null;
+                var sprite = BridgeIconResolver.Ensure(member.Asset)
+                             ?? (member.Asset != null ? member.Asset.icon ?? member.Asset.GenerateIcon() : null);
                 if (sprite != null)
                 {
                     mecb.iconImage.sprite = sprite;

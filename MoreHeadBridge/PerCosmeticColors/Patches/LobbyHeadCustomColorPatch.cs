@@ -62,7 +62,9 @@ internal static class LobbyHeadCustomColorPatch
     {
         color = default;
 
-        bool isLocal = pc.photonView == null
+        // Outside multiplayer there are no remote players, and the main menu's news popup head has no networked view to ask.
+        bool isLocal = !SemiFunc.IsMultiplayer()
+                       || pc.photonView == null
                        || pc.photonView.IsMine
                        || pc.playerAvatarVisuals == null
                        || pc.playerAvatarVisuals.isMenuAvatar;

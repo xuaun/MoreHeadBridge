@@ -31,18 +31,30 @@ internal static class DeathHeadFloorPosePopup
                               Action<DeathHeadFloorPose> onPreview,
                               Action<DeathHeadFloorPose> onDone,
                               Action onClose,
-                              Transform? parentPopupTransform)
+                              Transform? parentPopupTransform,
+                              CosmeticRestPose rest)
         => PopupUI.AfterMouseRelease(Plugin.Instance, () => ShowNow(
-            existing, onPreview, onDone, onClose, parentPopupTransform));
+            existing, onPreview, onDone, onClose, parentPopupTransform, rest));
 
     private static void ShowNow(DeathHeadFloorPose? existing,
                               Action<DeathHeadFloorPose> onPreview,
                               Action<DeathHeadFloorPose> onDone,
                               Action onClose,
-                              Transform? parentPopupTransform)
+                              Transform? parentPopupTransform,
+                              CosmeticRestPose rest)
     {
         var pose = existing?.Clone() ?? new DeathHeadFloorPose();
         pose.MigrateLegacy(); // fold legacy "React to Floor" into ReactWhenDead
+
+        // The sliders are relative to where the cosmetic rests; the pose is stored absolute.
+        var shown = existing != null
+            ? rest.ToShown(new Vector3(pose.PosX, pose.PosY, pose.PosZ),
+                           new Vector3(pose.RotX, pose.RotY, pose.RotZ),
+                           new Vector3(pose.ScaleX, pose.ScaleY, pose.ScaleZ))
+            : (position: Vector3.zero, rotation: Vector3.zero, scale: Vector3.one);
+        float posX = shown.position.x, posY = shown.position.y, posZ = shown.position.z;
+        float rotX = shown.rotation.x, rotY = shown.rotation.y, rotZ = shown.rotation.z;
+        float scaleX = shown.scale.x, scaleY = shown.scale.y, scaleZ = shown.scale.z;
 
         var popup = MenuAPI.CreateREPOPopupPage(
             headerText: "Impact Pose",
@@ -53,7 +65,20 @@ internal static class DeathHeadFloorPosePopup
 
         PopupUI.AttachGuards(popup, parentPopupTransform);
 
-        void Preview() => onPreview(pose);
+        void Preview()
+        {
+            var stored = rest.ToStored(new Vector3(posX, posY, posZ), new Vector3(rotX, rotY, rotZ), new Vector3(scaleX, scaleY, scaleZ));
+            pose.PosX = stored.position.x;
+            pose.PosY = stored.position.y;
+            pose.PosZ = stored.position.z;
+            pose.RotX = stored.rotation.x;
+            pose.RotY = stored.rotation.y;
+            pose.RotZ = stored.rotation.z;
+            pose.ScaleX = stored.scale.x;
+            pose.ScaleY = stored.scale.y;
+            pose.ScaleZ = stored.scale.z;
+            onPreview(pose);
+        }
 
         // ── React toggles (top) ────────────────────────────────────────────
         // Independent: the cosmetic can react while alive (pushes into a low ceiling / wall on the live body), while dead (contacts ground on the death head), or both.
@@ -76,17 +101,17 @@ internal static class DeathHeadFloorPosePopup
         }, topPadding: 0f);
 
         // Pose sliders — a gap above the first separates them from the toggle.
-        PopupUI.AddFloatSlider(popup, "Pos X", CosmeticOffsetEntryPopup.PosOptions, pose.PosX, v => { pose.PosX = v; Preview(); }, PopupUI.BtnTopGap);
-        PopupUI.AddFloatSlider(popup, "Pos Y", CosmeticOffsetEntryPopup.PosOptions, pose.PosY, v => { pose.PosY = v; Preview(); });
-        PopupUI.AddFloatSlider(popup, "Pos Z", CosmeticOffsetEntryPopup.PosOptions, pose.PosZ, v => { pose.PosZ = v; Preview(); });
+        PopupUI.AddFloatSlider(popup, "Pos X", CosmeticOffsetEntryPopup.PosOptions, posX, v => { posX = v; Preview(); }, PopupUI.BtnTopGap);
+        PopupUI.AddFloatSlider(popup, "Pos Y", CosmeticOffsetEntryPopup.PosOptions, posY, v => { posY = v; Preview(); });
+        PopupUI.AddFloatSlider(popup, "Pos Z", CosmeticOffsetEntryPopup.PosOptions, posZ, v => { posZ = v; Preview(); });
 
-        PopupUI.AddIntSlider(popup, "Rot X", CosmeticOffsetEntryPopup.RotOptions, (int)pose.RotX, v => { pose.RotX = v; Preview(); }, PopupUI.BtnTopGap);
-        PopupUI.AddIntSlider(popup, "Rot Y", CosmeticOffsetEntryPopup.RotOptions, (int)pose.RotY, v => { pose.RotY = v; Preview(); });
-        PopupUI.AddIntSlider(popup, "Rot Z", CosmeticOffsetEntryPopup.RotOptions, (int)pose.RotZ, v => { pose.RotZ = v; Preview(); });
+        PopupUI.AddIntSlider(popup, "Rot X", CosmeticOffsetEntryPopup.RotOptions, (int)rotX, v => { rotX = v; Preview(); }, PopupUI.BtnTopGap);
+        PopupUI.AddIntSlider(popup, "Rot Y", CosmeticOffsetEntryPopup.RotOptions, (int)rotY, v => { rotY = v; Preview(); });
+        PopupUI.AddIntSlider(popup, "Rot Z", CosmeticOffsetEntryPopup.RotOptions, (int)rotZ, v => { rotZ = v; Preview(); });
 
-        PopupUI.AddFloatSlider(popup, "Scale X", ScaleOptions, pose.ScaleX, v => { pose.ScaleX = v; Preview(); }, PopupUI.BtnTopGap);
-        PopupUI.AddFloatSlider(popup, "Scale Y", ScaleOptions, pose.ScaleY, v => { pose.ScaleY = v; Preview(); });
-        PopupUI.AddFloatSlider(popup, "Scale Z", ScaleOptions, pose.ScaleZ, v => { pose.ScaleZ = v; Preview(); });
+        PopupUI.AddFloatSlider(popup, "Scale X", ScaleOptions, scaleX, v => { scaleX = v; Preview(); }, PopupUI.BtnTopGap);
+        PopupUI.AddFloatSlider(popup, "Scale Y", ScaleOptions, scaleY, v => { scaleY = v; Preview(); });
+        PopupUI.AddFloatSlider(popup, "Scale Z", ScaleOptions, scaleZ, v => { scaleZ = v; Preview(); });
 
         PopupUI.AddIntSlider(popup, "Lerp Speed", CosmeticOffsetEntryPopup.SpeedOptions,
             Mathf.Clamp((int)pose.LerpSpeed, 1, 10), v => { pose.LerpSpeed = v; Preview(); }, PopupUI.BtnTopGap);
@@ -95,7 +120,7 @@ internal static class DeathHeadFloorPosePopup
         {
             var row = PopupUI.MakeRow(scrollView);
 
-            MenuAPI.CreateREPOButton("Cancel", () =>
+            PopupUI.CreateBackButton("Cancel", () =>
             {
                 popup.ClosePage(false);
                 onClose();

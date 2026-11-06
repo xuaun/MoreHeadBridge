@@ -73,7 +73,7 @@ internal static class WorldCosmeticsHighlightPatch
     private static int CountNewCosmetics(Func<CosmeticAsset, bool> predicate)
     {
         var meta       = MetaManager.instance;
-        var historySet = new HashSet<int>(meta.cosmeticHistory);
+        var historySet = CosmeticIndexSets.Of(meta.cosmeticHistory);
         int count      = 0;
 
         foreach (int index in meta.cosmeticUnlocks)
@@ -125,8 +125,8 @@ internal static class WorldCosmeticsSectionHighlightPatch
         bool inWorldCategory = WorldCosmeticsMenuState.IsWorldCategory(
             __instance.menuPageCosmetics?.selectedCategory);
 
-        var historySet = new HashSet<int>(MetaManager.instance.cosmeticHistory);
-        var unlocksSet = new HashSet<int>(MetaManager.instance.cosmeticUnlocks);
+        var historySet = CosmeticIndexSets.Of(MetaManager.instance.cosmeticHistory);
+        var unlocksSet = CosmeticIndexSets.Of(MetaManager.instance.cosmeticUnlocks);
         int count = 0;
         for (int i = 0; i < MetaManager.instance.cosmeticAssets.Count; i++)
         {

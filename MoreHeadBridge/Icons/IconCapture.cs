@@ -16,24 +16,30 @@ internal static class IconCapture
 {
     private const int OutSize = 128;
 
-    // Private cache dir: %persistentDataPath%\Cache\Icons\CosmeticsModded\MoreHeadBridge_CosmeticsIcons\. REPOLib's MetaManagerPatch wipes Cache\Icons\Cosmetics\ of non-vanilla PNGs, but our folder is a SIBLING under CosmeticsModded\ so it's untouched; GetIconPatch loads from here directly. Legacy path (< fix/folder-paths) %persistentDataPath%\MoreHeadBridge_Icons\ is migrated automatically on first run.
+    // Private cache dir: %persistentDataPath%\Cache\MoreHeadBridge_CosmeticsIcons\, out of Cache\Icons\, which the game empties on every new game version and REPOLib partly wipes each launch. BridgeIconResolver loads from here directly. PNGs in the older folders below move here on first run.
     private static string? _cacheDir;
     internal static string CacheDir
     {
         get
         {
             if (_cacheDir != null) return _cacheDir;
-            _cacheDir = Path.Combine(Application.persistentDataPath,
-                                     "Cache", "Icons", "CosmeticsModded", "MoreHeadBridge_CosmeticsIcons");
-            MigrateLegacyCache(_cacheDir);
+            _cacheDir = Path.Combine(Application.persistentDataPath, "Cache", "MoreHeadBridge_CosmeticsIcons");
+            foreach (string oldDir in LegacyCacheDirs())
+                MigrateLegacyCache(oldDir, _cacheDir);
             return _cacheDir;
         }
     }
 
-    // Migrates PNGs from the old root-level cache folder; runs once when CacheDir is first evaluated. Non-fatal — icons can be regenerated.
-    private static void MigrateLegacyCache(string newDir)
+    // Older homes of the cache, oldest first.
+    private static string[] LegacyCacheDirs() =>
+    [
+        Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons"),
+        Path.Combine(Application.persistentDataPath, "Cache", "Icons", "CosmeticsModded", "MoreHeadBridge_CosmeticsIcons"),
+    ];
+
+    // Moves the PNGs of an older cache folder; runs once when CacheDir is first evaluated. Non-fatal — icons can be regenerated.
+    private static void MigrateLegacyCache(string oldDir, string newDir)
     {
-        string oldDir = Path.Combine(Application.persistentDataPath, "MoreHeadBridge_Icons");
         if (!Directory.Exists(oldDir)) return;
 
         BceConsole.LogInfo($"IconCapture: migrating icon cache from legacy location...");
@@ -90,7 +96,7 @@ internal static class IconCapture
         return name.Length == 0 ? "_unnamed" : name;
     }
 
-    // In-memory set of known-cached paths — GetIcon fires for every visible button during RefreshScrollContent, so no File.Exists per call. Seeded lazily, updated on each capture write.
+    // In-memory set of known-cached paths — checked for every button during RefreshScrollContent, so no File.Exists per call. Seeded lazily, updated on each capture write.
     private static HashSet<string>? _knownCached;
 
     private static void EnsureCacheSeeded()
@@ -131,8 +137,17 @@ internal static class IconCapture
         _knownCached!.Add(CachePathFor(asset));
     }
 
+    /// Drops a listed PNG that could not be loaded, such as one deleted outside the mod,
+    /// so the asset falls back to its placeholder and gets captured again on hover.
+    internal static void Forget(CosmeticAsset asset)
+    {
+        EnsureCacheSeeded();
+        _knownCached!.Remove(CachePathFor(asset));
+        CosmeticHoverPatch.Invalidate(asset);
+    }
+
     /// Deletes the cached PNG for the given asset from disk and from the in-memory
-    /// set, then clears the Sprite so GetIconPatch re-evaluates on the next call.
+    /// set, then clears the Sprite so BridgeIconResolver rebuilds it on the next redraw.
     internal static void DeleteCache(CosmeticAsset asset)
     {
         EnsureCacheSeeded();
@@ -199,7 +214,8 @@ internal static class IconCapture
 
         // Isolated render (SemiIconMaker-style) instead of cropping the live avatar; per-cosmetic override falls back to UseIsolatedIconRender. Bridge only (.hhh prefab is a self-contained mesh) — never Mini-Semibot, whose placeholder prefab has no mesh.
         if (BridgeIds.IsBridgeAsset(asset) && asset.assetId != MiniSemibotCosmetic.AssetId
-            && CustomizerStore.GetEffectiveIsolatedIcon(asset.assetId))
+            && CustomizerStore.GetEffectiveIsolatedIcon(asset.assetId)
+            && !IsolatedIconRenderer.HasNoMesh(asset))
             return TryCaptureIsolated(asset);
 
         Texture2D? full = null;
@@ -238,7 +254,7 @@ internal static class IconCapture
             File.WriteAllBytes(cachePath, scaled.EncodeToPNG());
             MarkCached(cachePath);
 
-            // RefreshVisibleButtons below triggers UpdateIcon → GetIconPatch, which recreates the icon from the freshly-written PNG.
+            // RefreshVisibleButtons below triggers UpdateIcon → BridgeIconResolver, which recreates the icon from the freshly-written PNG.
             if (asset.icon != null)
             {
                 UnityEngine.Object.Destroy(asset.icon);

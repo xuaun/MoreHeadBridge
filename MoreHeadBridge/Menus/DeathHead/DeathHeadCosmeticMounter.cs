@@ -21,6 +21,9 @@ internal sealed class DeathHeadCosmeticMounter
     // The mount of the cosmetic being edited � receives the live offset.
     internal GameObject? ConfiguredMount { get; private set; }
 
+    // Where that mount rests without an offset.
+    internal CosmeticRestPose ConfiguredRest { get; private set; } = CosmeticRestPose.OnAnchor;
+
     // Optional resolver for decorative clones' animation specs (set by the Mini-Semibot death head). Non-null fully decides the AnimSet per assetId; null = global-on + local-store (popup preview).
     internal System.Func<string, AnimSet>? AnimOverride;
 
@@ -48,7 +51,7 @@ internal sealed class DeathHeadCosmeticMounter
 
             if (!_parentByType.TryGetValue(effType, out var cp) || cp?.parent == null)
             {
-                if (_fallbackAnchor != null) MountDecorativeClone(liveGo, _fallbackAnchor, isConfigured);
+                if (_fallbackAnchor != null) MountDecorativeClone(liveGo, asset, _fallbackAnchor, false, isConfigured);
                 continue;
             }
 
@@ -58,7 +61,7 @@ internal sealed class DeathHeadCosmeticMounter
             if (hasReparentTarget)
             {
                 if (BridgeIds.IsBridgeAsset(asset))
-                    MountBridgeMeshCosmetic(liveGo, effType, cp, isConfigured); // bridge: clone live GO
+                    MountBridgeMeshCosmetic(liveGo, asset, effType, cp, isConfigured); // bridge: clone live GO
                 else
                     MountMeshCosmetic(asset, effType, cp, isConfigured);        // vanilla: swap onto bones
             }
@@ -66,7 +69,7 @@ internal sealed class DeathHeadCosmeticMounter
                 continue;                                        // legs: keep the death head's own
                                                                  // legs (color only) � no mesh swap
             else
-                MountDecorativeClone(liveGo, cp.parent, isConfigured); // decorative: clone live GO
+                MountDecorativeClone(liveGo, asset, cp.parent, cp.resetTransform, isConfigured); // decorative: clone live GO
         }
     }
 
@@ -84,21 +87,25 @@ internal sealed class DeathHeadCosmeticMounter
     }
 
     // Clones the already-built live cosmetic GO onto the anchor (keeps its colors); visual-only.
-    private void MountDecorativeClone(GameObject src, Transform anchor, bool isConfigured)
+    private void MountDecorativeClone(GameObject src, CosmeticAsset asset, Transform anchor, bool resetTransform, bool isConfigured)
     {
         try
         {
             var clone = UnityEngine.Object.Instantiate(src, anchor, worldPositionStays: false);
-            clone.transform.localPosition = Vector3.zero;
-            clone.transform.localRotation = Quaternion.identity;
+            // Where the gameplay death head puts it, not where the live one is now.
+            var rest = CosmeticRestPose.Of(asset, resetTransform);
+            rest.ApplyTo(clone.transform);
 
-            var asset = src.GetComponentInChildren<Cosmetic>(true)?.cosmeticAsset;
             DeathHeadModelStripper.StripGameplay(clone);   // also removes the clone's BridgeTintMaterials
-            if (asset != null) AttachPreviewAnimator(clone, asset);
+            AttachPreviewAnimator(clone, asset);
 
             _mounted.Add(clone);
-            if (asset?.assetId != null) _cloneAssetIds[clone] = asset.assetId;
-            if (isConfigured) ConfiguredMount = clone;
+            if (asset.assetId != null) _cloneAssetIds[clone] = asset.assetId;
+            if (isConfigured)
+            {
+                ConfiguredMount = clone;
+                ConfiguredRest = rest;
+            }
         }
         catch (System.Exception ex) { BridgeLog.Debug($"DeathHead: skipped a cosmetic clone � {ex.Message}"); }
     }
@@ -150,9 +157,9 @@ internal sealed class DeathHeadCosmeticMounter
     }
 
     // A bridge mesh-switch cosmetic keeps its BUILT mesh + baked tint on the LIVE GO (CosmeticSetupPatch leaves its meshParents empty so vanilla Setup never re-parents/strips it), so clone the live GO like a decorative cosmetic � the raw prefab is unbuilt. Then hide the death head's own base meshes for mesh-switch types (by the OWNER's effType), mirroring the live avatar's swap.
-    private void MountBridgeMeshCosmetic(GameObject liveGo, SemiFunc.CosmeticType effType, PlayerCosmetics.CosmeticParent cp, bool isConfigured)
+    private void MountBridgeMeshCosmetic(GameObject liveGo, CosmeticAsset asset, SemiFunc.CosmeticType effType, PlayerCosmetics.CosmeticParent cp, bool isConfigured)
     {
-        MountDecorativeClone(liveGo, cp.parent, isConfigured);
+        MountDecorativeClone(liveGo, asset, cp.parent, cp.resetTransform, isConfigured);
 
         if (IsMeshSwitch(effType) && cp.baseMeshes != null)
             foreach (var bm in cp.baseMeshes)
@@ -243,7 +250,11 @@ internal sealed class DeathHeadCosmeticMounter
                 foreach (var mp in meshParents)
                     if (mp != null && !mp.IsChildOf(go.transform)) _mounted.Add(mp.gameObject);
 
-            if (isConfigured) ConfiguredMount = go;
+            if (isConfigured)
+            {
+                ConfiguredMount = go;
+                ConfiguredRest = CosmeticRestPose.Of(asset, cp.resetTransform);
+            }
         }
         catch (System.Exception ex) { BridgeLog.Debug($"DeathHead: skipped a cosmetic mount — {ex.Message}"); }
     }

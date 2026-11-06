@@ -137,9 +137,15 @@ internal static partial class MoreHeadCosmeticMountPatch
     // Combined renderer-mesh centre of a prefab in the prefab ROOT's local frame, from sharedMesh.bounds + authored child transforms (no instantiation, immune to runtime scale zeroing). False when the prefab has no renderable mesh (centre left at zero).
     private static bool TryGetMeshCenterRootLocal(GameObject root, out Vector3 center)
     {
-        center = Vector3.zero;
+        bool any = TryGetMeshBoundsRootLocal(root, out var b);
+        center = any ? b.center : Vector3.zero;
+        return any;
+    }
+
+    internal static bool TryGetMeshBoundsRootLocal(GameObject root, out Bounds b)
+    {
         Matrix4x4 rootInv = root.transform.worldToLocalMatrix;
-        Bounds b = default;
+        b = default;
         bool any = false;
 
         foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
@@ -149,7 +155,6 @@ internal static partial class MoreHeadCosmeticMountPatch
             if (smr != null && smr.sharedMesh != null)
                 EncapsulateMesh(ref b, ref any, rootInv * smr.transform.localToWorldMatrix, smr.sharedMesh);
 
-        if (any) center = b.center;
         return any;
     }
 

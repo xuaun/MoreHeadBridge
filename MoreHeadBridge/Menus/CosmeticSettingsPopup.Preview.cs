@@ -321,7 +321,7 @@ internal static partial class CosmeticSettingsPopup
         {
             var row = PopupUI.MakeRow(sv);
 
-            MenuAPI.CreateREPOButton(BtnCloseText, () => popup.ClosePage(false),
+            PopupUI.CreateBackButton(BtnCloseText, () => popup.ClosePage(false),
                 row, new Vector2(BtnBackX, 0f));
 
             MenuAPI.CreateREPOButton(BtnImportText, () =>
