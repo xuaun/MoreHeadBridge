@@ -2,41 +2,56 @@
 
 ## v3.1.0
 
-> ⚠ **Requires R.E.P.O. v0.5.0 (Sunstone Update) and REPOLib 4.3.0.** This version no longer works on older game versions.
+> ⚠ **Requires R.E.P.O. v0.5.1 and REPOLib 4.3.0, plus MenuLib 2.6.2 or newer if you use it.** This version no longer works on older game versions.
 
-- Updated for the new game version: cosmetic icons work with the game's new icon system
-- Cosmetics menu and color page can be navigated with a controller or keyboard, including the SEARCH, SELECTED, FAV, HIDE and WORLD tabs, the Tools button, and the M / C / A color buttons and slot selector
+### Game update
+
+- Updated for the new game version: cosmetic icons work with the game's new icon system, and popups respond when the cosmetics menu is opened from the main menu or the lobby, or when they open over the color page
 - Expression wheel portraits now update when you change per-cosmetic colors, overrides, or the Mini-Semibot
-- Typing in SEARCH no longer rotates the avatar or moves the menu selection
-- New controller shortcuts on the selected cosmetic: open the customizer, favorite and hide (by default the top face button, the left face button and the right trigger). Choose others, or turn them off, with `CustomizerGamepadButton`, `FavoriteGamepadButton` and `HideGamepadButton`
-- New options to choose which held key favorites, hides or opens the customizer: `FavoriteClickModifier`, `HideClickModifier` and `CustomizerClickModifier` (Ctrl, Alt or Shift). Each action needs a different key or button; on a conflict, all three go back to the defaults
-- Menu hints now show the game's own icons for your controller and the mouse, and follow the options above
+- The head in the main menu's news popup now shows your custom head color
+- Fixed an error when the game generated icons for cosmetics from other mods
+- If MoreHead isn't updated yet, its broken scroll patch is turned off so menus can scroll again
+
+### Controller and keyboard
+
+- The cosmetics menu and color page can be navigated with a controller or keyboard, including the SEARCH, SELECTED, FAV, HIDE and WORLD tabs, the Tools button, and the M / C / A color buttons and slot selector
 - The bridge's popups can be navigated with a controller or keyboard
+- New controller shortcuts on the selected cosmetic: open the customizer, favorite and hide (by default the top face button, the left face button and the right trigger). Choose others, or turn them off, with `CustomizerGamepadButton`, `FavoriteGamepadButton` and `HideGamepadButton`
+- New options to choose which held key favorites, hides or opens the customizer: `FavoriteClickModifier`, `HideClickModifier` and `CustomizerClickModifier` (Ctrl, Alt or Shift). Each action needs a different key or button; on a conflict, all three go back to the defaults. All six options are in the new `[CosmeticsMenuShortcuts]` config group
+- Menu hints now show the game's own icons for your controller and the mouse, and follow the options above
 - The SEARCH field can be reached with a controller: confirm opens Steam's gamepad keyboard when it's available, otherwise it focuses the field for a physical keyboard
-- Fixed the Mini-Semibot in the expression preview keeping old custom colors after editing them in-game
-- Fixed the Mini-Semibot's Mimic Clips being almost silent: they now play through the game's voice channel, about as loud as a player's voice, and follow its volume
-- The Mini-Semibot copies in the expression preview and the menus no longer speak Mimic Clips on their own, which other players could hear from your mini: they now mouth along with the real one
-- Fixed the Mini-Semibot running off to the center of the map while you stood against certain objects
-- Fixed the head in the main menu's news popup not showing your custom head color
-- Fixed Back and ESC closing every open popup at once: they now close only the popup on top, the same way as its Cancel or Back button
-- Fixed the last rows of some popups, like the variant picker, being cut off with no way to scroll to them
-- Fixed the selection jumping to the top when moving quickly through a popup with a controller or keyboard
-- Fixed rows overlapping in the color animation popup when using a controller or keyboard in Rainbow mode
+- Typing in SEARCH no longer rotates the avatar or moves the menu selection
+
+### Performance
+
+- Much faster startup and much less memory with MoreHead installed: cosmetics it already loaded are reused instead of being loaded a second time
+- Even faster startup with many cosmetics, with or without MoreHead: `.hhh` files open in the background. Turn it off with `ParallelCosmeticLoading`
+- Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
+- `FixCosmeticsMenuPerformance` now creates only the buttons near the visible area, so opening the menu and changing tabs is much faster with many cosmetics. Off by default
+- Icons of other cosmetic mods render what's on screen first, one per frame, and are saved per profile, so later sessions skip rendering them. Each one also takes about 22 KB of memory instead of 340 KB. Clear All Icons and `DeleteIconCache` without a filter delete them too. Turn saving off with `SaveModdedIconsToDisk`
+
+### Mini-Semibot
+
+- Fixed Mimic Clips being almost silent: they now play through the game's voice channel, about as loud as a player's voice, and follow its volume
+- The copies in the expression preview and the menus no longer speak Mimic Clips on their own, which other players could hear from your mini: they now mouth along with the real one
+- Fixed the mini running off to the center of the map while you stood against certain objects
+- Fixed the mini in the expression preview keeping old custom colors after editing them in-game
+
+### Crown Settings, offsets and Death Head
+
 - Fixed the crown not showing in the Crown Settings preview on cosmetics that had no crown data
 - Fixed Crown Settings on many cosmetics whose model is off-center, scaled or turned: the crown started far from the head, and the sliders barely moved it or moved it too much. Positions you already saved stay where they are
 - Fixed those same cosmetics in the Death Head preview, where they appeared far from the head or at the wrong size, and in new offsets and impact poses, which made them jump away. Sliders now start from where the cosmetic already is, and values you already saved stay as they are
 - On those same cosmetics, the rotation and scale of offsets and impact poses now turn around the cosmetic itself instead of an empty point far from it
-- With `FixCosmeticsMenuPerformance` on, cosmetics hidden by another mod, like YoshiCarry's duplicates, no longer leave empty sections or gaps
-- Fixed popups not responding when the cosmetics menu was opened from the main menu or the lobby, or when they opened over the color page
+
+### Menus and icons
+
+- Fixed Back and ESC closing every open popup at once: they now close only the popup on top, the same way as its Cancel or Back button
+- Fixed the last rows of some popups, like the variant picker, being cut off with no way to scroll to them
 - The icon batch generator now names each cosmetic it couldn't capture, with its category
-- Much faster cosmetics menu with many cosmetic mods: changing tabs only prepares what's on screen, saved icons load in the background, and the "new cosmetic" counters no longer stutter on hover
-- Much faster startup and much less memory with MoreHead installed: cosmetics it already loaded are reused instead of being loaded a second time
-- Even faster startup with many cosmetics, with or without MoreHead: `.hhh` files open in the background. Turn it off with `ParallelCosmeticLoading`
-- `FixCosmeticsMenuPerformance` now creates only the buttons near the visible area, so opening the menu and changing tabs is much faster with many cosmetics. Off by default
-- Icons of other cosmetic mods render what's on screen first, one per frame, and are saved per profile, so later sessions skip rendering them. Each one also takes about 22 KB of memory instead of 340 KB. Clear All Icons and `DeleteIconCache` without a filter delete them too. Turn saving off with `SaveModdedIconsToDisk`
 - Cosmetics with no mesh of their own, like eyes that only hide the pupils, now get an icon from a photo of the avatar
-- Fixed an error when the game generated icons for cosmetics from other mods
-- If MoreHead isn't updated yet, its broken scroll patch is turned off so menus can scroll again
+- Bridge icons now survive game updates: their cache moved to `Cache/MoreHeadBridge_CosmeticsIcons`, out of the folder the game empties on every new version. Icons in the old folder move over on first launch
+- Fixed preset thumbnails leaving out bridge cosmetics, and showing the menu preview instead of the preset when made while previewing, as during the icon batch
 
 ## v3.0.1
 
