@@ -25,7 +25,6 @@ public partial class Plugin : BaseUnityPlugin
     {
         Instance = this;
         Logger = base.Logger;
-        PerfProbe.BootMark("bridge start");   // TEMP-TEST
 
         BridgePaths.Init();
 
@@ -57,7 +56,6 @@ public partial class Plugin : BaseUnityPlugin
 
         HhhCosmeticLoader.LoadAll();
         HhhPreloader.Finish();
-        PerfProbe.BootMark("bridge .hhh loaded");   // TEMP-TEST
         // Emit a single [Warning] + per-GO [Debug] lines for the PartShrinker "missing script" warnings suppressed during LoadAll().
         PartShrinkerSuppressor.FlushSuppressedLog();
 
@@ -88,8 +86,6 @@ public partial class Plugin : BaseUnityPlugin
             MenuLibLabelFixPatch.TryApply(_harmony);
             MenuLibPopupPatch.TryApply(_harmony);
         }
-        PerfProbe.TryApply(_harmony);   // TEMP-TEST
-        PerfProbe.BootMark("bridge done");   // TEMP-TEST
     }
 
     // Subscribes the live-apply reactions for every config toggle that takes effect without a restart.

@@ -24,16 +24,12 @@ internal static class BridgeIconPreloadPatch
 
     private static async Task Preload()
     {
-        double startedAt = Time.realtimeSinceStartupAsDouble;   // TEMP-TEST
-        int total = 0;   // TEMP-TEST
-
         var batch = new List<Task>(IconsPerBatch);
         foreach (var asset in MetaManager.instance.cosmeticAssets.ToList())
         {
             var loading = LoadIcon(asset);
             if (loading == null) continue;
 
-            total++;   // TEMP-TEST
             batch.Add(Keep(asset, loading));
             if (batch.Count < IconsPerBatch) continue;
 
@@ -42,8 +38,6 @@ internal static class BridgeIconPreloadPatch
             await Task.Yield();
         }
         await Task.WhenAll(batch);
-
-        Plugin.Logger.LogInfo(System.FormattableString.Invariant($"[PERF] icon preload: {total} icons in {Time.realtimeSinceStartupAsDouble - startedAt:F1} s"));   // TEMP-TEST
     }
 
     private static Task<Sprite?>? LoadIcon(CosmeticAsset asset)

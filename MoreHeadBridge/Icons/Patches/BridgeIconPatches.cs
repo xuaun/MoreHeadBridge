@@ -43,8 +43,6 @@ internal static class IconRenderQueuePatch
 
     private static async Task<Sprite> RenderInTurn(CosmeticAsset asset, Object owner)
     {
-        double onScreenSince = -1;   // TEMP-TEST
-
         // Checked while waiting: a button scrolled away leaves the queue without using up the frame's turn.
         while (true)
         {
@@ -53,7 +51,6 @@ internal static class IconRenderQueuePatch
             int frame = Time.frameCount;
             bool onScreen = IsOnScreen(owner);
             if (onScreen) _lastOnScreenFrame = frame;
-            if (onScreen && onScreenSince < 0) onScreenSince = Time.realtimeSinceStartupAsDouble;   // TEMP-TEST
 
             // Off-screen buttons wait while anything on screen asked in the previous frame.
             if (_lastRenderFrame != frame && (onScreen || frame - _lastOnScreenFrame > 1)) break;
@@ -69,9 +66,7 @@ internal static class IconRenderQueuePatch
         try { render = asset.GenerateIconAsync(owner); }
         finally { _rendering = false; }
 
-        var icon = await render;
-        if (onScreenSince >= 0) PerfProbe.NoteIconWait(Time.realtimeSinceStartupAsDouble - onScreenSince);   // TEMP-TEST
-        return icon;
+        return await render;
     }
 
     // Anything other than a cosmetic button in the scroll list counts as on screen.
