@@ -14,6 +14,8 @@ internal sealed class BridgeDeathHeadGameplayMount : MonoBehaviour
 {
     private PlayerDeathHead? _deathHead;
     private readonly List<GameObject> _mounted = new();
+    // Crown markers on the death-head pc's deactivated copies, aimed at targets under _mounted.
+    private readonly List<CosmeticPlayerCrown> _crownMarkers = new();
 
     // ── Factory ───────────────────────────────────────────────────────────────
 
@@ -83,6 +85,10 @@ internal sealed class BridgeDeathHeadGameplayMount : MonoBehaviour
 
         // Show-on-Death-Head for modded non-bridge cosmetics is re-evaluated every remount (not at instantiation) so the toggle works both ways — instances are reused across deaths.
         ApplyModdedDeathHeadVisibility(mainPc, isRemote, actorNumber);
+
+        // PlayerCrown caches its marker: re-pick now that the markers aim at these mounts.
+        if (mainPc.playerCrown != null)
+            mainPc.playerCrown.UpdateTarget();
     }
 
     // Active state per Show-on-Death-Head toggle, modded non-bridge only; bridge is owned by our mount, vanilla never touched.
@@ -105,6 +111,11 @@ internal sealed class BridgeDeathHeadGameplayMount : MonoBehaviour
     /// Destroy all mounted bridge GOs and re-run ConditionsSetup to clean up.
     internal void ClearMounts()
     {
+        // Destroy is deferred: a marker still aiming at a doomed mount would win UpdateTarget this frame.
+        foreach (var marker in _crownMarkers)
+            if (marker != null) marker.targetMain = null;
+        _crownMarkers.Clear();
+
         foreach (var go in _mounted)
         {
             if (go == null) continue;
@@ -208,18 +219,21 @@ internal sealed class BridgeDeathHeadGameplayMount : MonoBehaviour
             List<CosmeticOffsetEntry>? offsets = null;
             List<CosmeticCustomCondition.Type>? customTypes = null;
             DeathHeadFloorPose? floorPose = null;
+            CosmeticCrownConfig? crown = null;
 
             if (isRemote)
             {
                 offsets     = remoteData?.Offsets;
                 customTypes = remoteData?.CustomTypes;
                 floorPose   = remoteData?.FloorPose;
+                crown       = remoteData?.Crown;
             }
             else if (CustomizerStore.TryGet(asset.assetId, out var localData))
             {
                 offsets     = localData?.Offsets;
                 customTypes = localData?.CustomTypes;
                 floorPose   = localData?.FloorPose;
+                crown       = localData?.Crown;
             }
 
             // Inject ALL configured offsets, not just Player_DeathHead: head-shape conditions are active on the death-head model exactly like on the live avatar. Conditions that never activate there are harmless.
@@ -253,12 +267,28 @@ internal sealed class BridgeDeathHeadGameplayMount : MonoBehaviour
                 go.AddComponent<BridgeDeathHeadBlocked>().Init(_deathHead, go.transform, floorPose);
 
             _mounted.Add(go);
+
+            AimCrownAtMount(go, asset, mainPc, effectiveType, crown);
         }
         catch (Exception ex)
         {
             BridgeLog.Trace(
                 $"BridgeDeathHeadGameplayMount: failed to mount '{asset.assetId}': {ex.Message}");
         }
+    }
+
+    // PlayerCrown only scans the death-head pc's own list, where a bridge piece is the deactivated copy. The marker stays on that copy but aims under the visible mount, so the crown follows the mount's offsets and impact pose.
+    private void AimCrownAtMount(GameObject mounted, CosmeticAsset asset, PlayerCosmetics mainPc,
+                                 SemiFunc.CosmeticType effectiveType, CosmeticCrownConfig? crown)
+    {
+        if (crown == null) return;
+        if (effectiveType != SemiFunc.CosmeticType.Hat && effectiveType != SemiFunc.CosmeticType.HeadTopMesh) return;
+
+        var copy = MoreHeadCosmeticMountPatch.GetEquippedCosmetics(mainPc)
+            ?.Find(c => c != null && MoreHeadCosmeticMountPatch.GetCosmeticAsset(c) == asset);
+        if (copy == null) return;
+
+        _crownMarkers.Add(MoreHeadCosmeticMountPatch.AimCrownMarker(copy.gameObject, mounted, crown));
     }
 
     // Colours a mounted bridge cosmetic like the live avatar: override → apply (per-slot, then whole-asset); none → RestoreOriginalColor. Local overrides come from the PerCosmeticColors store; remote from the OWNER's sync component, never the death-head's own (empty) one.
