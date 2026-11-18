@@ -165,7 +165,7 @@ Since the vanilla menu has more specific slots than MoreHead, this mapping is us
 
 ## Installation
 
-> **Requires R.E.P.O. v0.5.1 and REPOLib 4.3.0.** On game versions before the Sunstone Update (v0.5.0), use MoreHead Bridge v3.0.1.
+> **Requires R.E.P.O. v0.5.2 and REPOLib 4.5.1.** On game versions before the Sunstone Update (v0.5.0), use MoreHead Bridge v3.0.1.
 
 1. Install via Thunderstore / r2modman (dependencies resolve automatically).
 2. **MenuLib** is a soft dependency — install it if you want the Cosmetic Customizer / Sync Customizer UI. On R.E.P.O. v0.5.1, use MenuLib 2.6.2 or newer, or the popup sliders and toggles won't line up.
