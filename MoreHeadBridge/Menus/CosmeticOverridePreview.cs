@@ -566,6 +566,31 @@ internal sealed class CosmeticOverridePreview : MonoBehaviour
         }
     }
 
+    // ── Pose preview ──────────────────────────────────────────────────────────
+    // The animator parameters the game sets for a real player. A menu avatar's PlayerAvatarVisuals leaves them alone, and the clips write currentPose, so hide rules follow the pose by themselves.
+    private static readonly int HCrouching = Animator.StringToHash("Crouching");
+    private static readonly int HCrawling = Animator.StringToHash("Crawling");
+    private static readonly int HTumbling = Animator.StringToHash("Tumbling");
+    private static readonly int HTumblingImpulse = Animator.StringToHash("TumblingImpulse");
+
+    /// Puts the preview avatar in a pose. Stand brings it back up through the game's own transitions.
+    internal void ShowPose(PlayerAvatarVisuals.Pose pose)
+    {
+        var animator = _visuals != null ? _visuals.GetComponent<Animator>() : null;
+        if (animator == null) return;
+
+        bool tumble = pose == PlayerAvatarVisuals.Pose.Tumble;
+        bool crawl = tumble || pose == PlayerAvatarVisuals.Pose.Crawl;
+        bool crouch = crawl || pose == PlayerAvatarVisuals.Pose.Crouch;
+
+        // Tumbling starts from its trigger once, as in PlayerAvatarVisuals.AnimationLogic.
+        if (tumble && !animator.GetBool(HTumbling)) animator.SetTrigger(HTumblingImpulse);
+        else if (!tumble) animator.ResetTrigger(HTumblingImpulse);
+        animator.SetBool(HTumbling, tumble);
+        animator.SetBool(HCrawling, crawl);
+        animator.SetBool(HCrouching, crouch);
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     internal GameObject? FindPreviewCosmeticGo()

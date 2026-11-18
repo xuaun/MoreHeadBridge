@@ -71,22 +71,25 @@ internal static class CosmeticHidePopup
 
     /// Opens the Hide Conditions page over the main popup; the config is mutated directly and persisted by the caller's Save.
     /// worldMode: body-shape conditions don't apply, and the cosmetic's own type is no obstacle to any trigger.
+    /// onPose: puts the preview avatar in a pose; called with Stand when the popup closes.
     // Build deferred to mouse-release: a fresh ACTIVE page would let a REPOSlider under the held click get scrubbed (see PopupUI.AfterMouseRelease).
     internal static void Show(
         CosmeticHideConfig config,
         SemiFunc.CosmeticType cosmeticType,
         Action? onPreview = null,
         Transform? parentPopupTransform = null,
-        bool worldMode = false)
+        bool worldMode = false,
+        Action<PlayerAvatarVisuals.Pose>? onPose = null)
         => PopupUI.AfterMouseRelease(Plugin.Instance, () => ShowNow(
-            config, cosmeticType, onPreview, parentPopupTransform, worldMode));
+            config, cosmeticType, onPreview, parentPopupTransform, worldMode, onPose));
 
     private static void ShowNow(
         CosmeticHideConfig config,
         SemiFunc.CosmeticType cosmeticType,
         Action? onPreview,
         Transform? parentPopupTransform,
-        bool worldMode)
+        bool worldMode,
+        Action<PlayerAvatarVisuals.Pose>? onPose)
     {
         config.WhenTypes ??= new List<SemiFunc.CosmeticType>();
         config.WhenConditions ??= new List<CosmeticCustomCondition.Type>();
@@ -170,6 +173,10 @@ internal static class CosmeticHidePopup
         // ── Section: Hide when pose (player body state; meaningless for world displays) ──
         if (!worldMode)
         {
+            // Closing the popup by any path stands the preview back up.
+            if (onPose != null)
+                PopupCloseAction.Attach(popup.gameObject, popup.menuPage, () => onPose(PlayerAvatarVisuals.Pose.Stand));
+
             AddLabel(popup, "Hide when pose:", BtnTopGap);
             bool firstPose = true;
             foreach (var (pose, label) in HidePoses)
@@ -187,6 +194,8 @@ internal static class CosmeticHidePopup
                             if (on) { if (!config.WhenPoses!.Contains(captured)) config.WhenPoses!.Add(captured); }
                             else config.WhenPoses!.Remove(captured);
                             onPreview?.Invoke();
+                            // ON or OFF, the preview takes this pose, showing the cosmetic hidden or worn in it.
+                            onPose?.Invoke(captured);
                         },
                         parent: scrollView,
                         defaultValue: isOn);

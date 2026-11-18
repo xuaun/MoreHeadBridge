@@ -601,7 +601,8 @@ internal static partial class CosmeticOverridePopup
                     pendingHide, cosType,
                     onPreview: PreviewFull,   // re-instantiate so the hide component reflects edits
                     parentPopupTransform: popup.transform,
-                    worldMode: isWorld);
+                    worldMode: isWorld,
+                    onPose: preview.ShowPose);
             }, row, new Vector2(BtnOffsetX, 0f));
             return row;
         }, topPadding: BtnTopGap);

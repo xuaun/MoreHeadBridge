@@ -3,13 +3,18 @@ using MenuLib.MonoBehaviors;
 
 namespace MoreHeadBridge;
 
-// MenuLib opens popups at priority 0, so over a higher page (main menu, lobby, color page) they stay non-interactable; matches them to the top page. Also wires navigation, row culling and the Back key on the bridge's own popups. Registered manually — MenuLib is a soft dep.
+// MenuLib before 2.6.3 opens popups at priority 0, so over a higher page (main menu, lobby, color page) they stay non-interactable; matches them to the top page. Also wires navigation, row culling and the Back key on the bridge's own popups. Registered manually — MenuLib is a soft dep.
 internal static class MenuLibPopupPatch
 {
+    // MenuLib 2.6.3 sets the priority itself, one above the page underneath unless the popup opens on top; overriding it would make that page clickable again.
+    private static bool _menuLibSetsPriority;
+
     internal static void TryApply(Harmony harmony)
     {
         try
         {
+            _menuLibSetsPriority = AccessTools.Field(typeof(MenuLib.REPOReflection), "menuPage_InteractionPriority") != null;
+
             var open = AccessTools.Method(typeof(REPOPopupPage), nameof(REPOPopupPage.OpenPage));
             if (open != null)
                 harmony.Patch(open, postfix: new HarmonyMethod(typeof(MenuLibPopupPatch), nameof(OpenPostfix)));
@@ -37,8 +42,11 @@ internal static class MenuLibPopupPatch
         var page = __instance.menuPage;
         if (page == null || MenuManager.instance == null) return;
 
-        page.interactionPriority = 0;   // a cached page keeps the value from its last open
-        page.interactionPriority = MenuManager.instance.HighestOpenPriority();
+        if (!_menuLibSetsPriority)
+        {
+            page.interactionPriority = 0;   // a cached page keeps the value from its last open
+            page.interactionPriority = MenuManager.instance.HighestOpenPriority();
+        }
 
         // PopupUI.AttachGuards marks the bridge's popups; other mods' pages may have their own layout.
         if (__instance.GetComponent<PopupScrollGuard>() != null)

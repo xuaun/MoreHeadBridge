@@ -10,7 +10,7 @@ internal static class MenuActionPrompts
 {
     private const string MouseLeftPath = "<Mouse>/leftButton";
 
-    // TagForPath is private; if a game update renames it, the prompts fall back to plain text.
+    // TagForPath is private; if a game update renames it or changes its first parameters, the prompts fall back to plain text.
     private static readonly System.Func<string, InputDeviceType, InputKey, string>? TagForPath = FindTagForPath();
 
     private static string _hint = "";
@@ -75,12 +75,37 @@ internal static class MenuActionPrompts
         return tag.Contains("<sprite") ? tag : $"<u><b>{tag}</b></u>";
     }
 
+    // Game v0.5.2 added optional parameters after the first three (compact); those get their defaults.
     private static System.Func<string, InputDeviceType, InputKey, string>? FindTagForPath()
     {
         try
         {
             var method = AccessTools.Method(typeof(InputGlyphs), "TagForPath");
-            return method == null ? null : AccessTools.MethodDelegate<System.Func<string, InputDeviceType, InputKey, string>>(method);
+            if (method == null) return null;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length == 3)
+                return AccessTools.MethodDelegate<System.Func<string, InputDeviceType, InputKey, string>>(method);
+
+            if (parameters.Length < 3 || !parameters[0].ParameterType.Equals(typeof(string))
+                || !parameters[1].ParameterType.Equals(typeof(InputDeviceType)) || !parameters[2].ParameterType.Equals(typeof(InputKey)))
+                return null;
+
+            var args = new object?[parameters.Length];
+            for (int i = 3; i < parameters.Length; i++)
+            {
+                if (!parameters[i].HasDefaultValue) return null;
+                args[i] = parameters[i].DefaultValue;
+            }
+
+            return (path, device, key) =>
+            {
+                var call = (object?[])args.Clone();
+                call[0] = path;
+                call[1] = device;
+                call[2] = key;
+                return (string)method.Invoke(null, call);
+            };
         }
         catch (System.Exception ex)
         {

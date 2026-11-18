@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.1.1
+
+> ⚠ **Requires R.E.P.O. v0.5.2 and REPOLib 4.5.1, plus MenuLib 2.6.2 or newer if you use it.**
+
+### Game update
+
+- Updated for R.E.P.O. v0.5.2: the cosmetics menu hints show the button icons again instead of their names
+- Now requires REPOLib 4.5.1, which fixes saving the unlocks and equipped items of modded cosmetics on v0.5.2
+- With MenuLib 2.6.3, the bridge no longer overrides MenuLib's popup fix: the page under a popup from any mod stays locked while the popup is open
+
+### Death Head
+
+- Crown Settings now applies on the in-game death head for bridge cosmetics: the crown follows the visible cosmetic instead of sinking into big hats, on your screen and on other players'
+
+### Cosmetic Customizer
+
+- In Hide Conditions, turning a pose option on or off now puts the preview avatar in that pose, so you can see the cosmetic hide or show in it right away. It stands back up when you close the popup
+
 ## v3.1.0
 
 > ⚠ **Requires R.E.P.O. v0.5.1 and REPOLib 4.3.0, plus MenuLib 2.6.2 or newer if you use it.** This version no longer works on older game versions.

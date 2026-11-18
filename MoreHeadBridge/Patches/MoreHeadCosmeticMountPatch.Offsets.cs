@@ -172,16 +172,16 @@ internal static partial class MoreHeadCosmeticMountPatch
         }
     }
 
+    private const string CrownTargetName = "Crown Target Bridge";
+
     /// Injects/updates a CosmeticPlayerCrown on a Hat/HeadTopMesh instance, with a
     /// "Crown Target Bridge" child at the configured pos/rot/scale. Null crown removes it.
     /// Runs in the InstantiateCosmetic Postfix, before PlayerCrown.UpdateTarget scans cosmetics.
     internal static void ApplyCrownConfig(GameObject instance, CosmeticCrownConfig? crown)
     {
-        const string bridgeTargetName = "Crown Target Bridge";
-
         if (crown == null)
         {
-            var bridgeTarget = instance.transform.Find(bridgeTargetName);
+            var bridgeTarget = instance.transform.Find(CrownTargetName);
             if (bridgeTarget != null)
             {
                 var crownComp = instance.GetComponentInChildren<CosmeticPlayerCrown>(includeInactive: true);
@@ -192,11 +192,17 @@ internal static partial class MoreHeadCosmeticMountPatch
             return;
         }
 
-        var targetTr = instance.transform.Find(bridgeTargetName);
+        AimCrownMarker(instance, instance, crown);
+    }
+
+    /// Aims markerHost's CosmeticPlayerCrown (added if missing) at a "Crown Target Bridge" child of targetHost.
+    internal static CosmeticPlayerCrown AimCrownMarker(GameObject markerHost, GameObject targetHost, CosmeticCrownConfig crown)
+    {
+        var targetTr = targetHost.transform.Find(CrownTargetName);
         if (targetTr == null)
         {
-            var targetGO = new GameObject(bridgeTargetName);
-            targetGO.transform.SetParent(instance.transform, false);
+            var targetGO = new GameObject(CrownTargetName);
+            targetGO.transform.SetParent(targetHost.transform, false);
             targetTr = targetGO.transform;
         }
 
@@ -204,13 +210,14 @@ internal static partial class MoreHeadCosmeticMountPatch
         targetTr.localRotation = Quaternion.Euler(crown.RotX, crown.RotY, crown.RotZ);
         targetTr.localScale = new Vector3(crown.ScaleX, crown.ScaleY, crown.ScaleZ);
 
-        var comp = instance.GetComponentInChildren<CosmeticPlayerCrown>(includeInactive: true);
+        var comp = markerHost.GetComponentInChildren<CosmeticPlayerCrown>(includeInactive: true);
         if (comp == null)
-            comp = instance.AddComponent<CosmeticPlayerCrown>();
+            comp = markerHost.AddComponent<CosmeticPlayerCrown>();
 
         comp.targetMain = targetTr;
         comp.priority = crown.Priority;
         comp.disableSpring = crown.DisableSpring;
+        return comp;
     }
 
     internal static void Mount(GameObject instance, Transform parent, GameObject sourcePrefab)
