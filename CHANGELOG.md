@@ -8,7 +8,7 @@
 
 - Updated for R.E.P.O. v0.5.2: the cosmetics menu hints show the button icons again instead of their names
 - Now requires REPOLib 4.5.1, which fixes saving the unlocks and equipped items of modded cosmetics on v0.5.2
-- With MenuLib 2.6.3, the bridge no longer overrides its popup fix: the page under a popup from any mod stays locked while the popup is open
+- With MenuLib 2.6.3, the bridge no longer overrides MenuLib's popup fix: the page under a popup from any mod stays locked while the popup is open
 
 ### Death Head
 
